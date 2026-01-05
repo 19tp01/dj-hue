@@ -1,0 +1,24 @@
+audio:
+  device: BlackHole 2ch
+  sample_rate: 44100
+  block_size: 512
+  channels: 1
+frequency_bands:
+- name: bass
+  low_hz: 20
+  high_hz: 250
+- name: mid
+  low_hz: 250
+  high_hz: 2000
+- name: high
+  low_hz: 2000
+  high_hz: 20000
+light_groups: []
+beat_detection: true
+smoothing: 0.3
+hue:
+  bridge_ip: 10.0.0.250
+  username: D6CIaQ8DaOMcWI9RZqx5WJc4e9kHl7Xr7AFec91Z
+  clientkey: 2B9DBA51F088FFA9EA658281105EAD28
+  entertainment_area_id: d86945dc-666c-4310-b46e-818cee1c8717
+  fps: 25
