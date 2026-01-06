@@ -12,11 +12,14 @@ And renders RGB colors for each light every frame.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 from ..lights.effects import BeatClock, Phaser, RGB
 from .groups import LightSetup
-from .pattern_def import Pattern, GroupEffect, ColorPalette
+from .pattern_def import Pattern, GroupEffect, ColorPalette, HSV
+
+if TYPE_CHECKING:
+    from .strudel import LightPattern, StrudelPatternWrapper, LightContext
 
 
 def get_builtin_patterns() -> dict[str, Pattern]:
@@ -155,6 +158,10 @@ class PatternEngine:
         # Callbacks
         self._on_pattern_change: Callable[[Pattern], None] | None = None
 
+        # Strudel pattern support
+        self._strudel_patterns: dict[str, "StrudelPatternWrapper"] = {}
+        self._light_context: "LightContext | None" = None
+
         # Set initial pattern
         if self._pattern_names:
             self._current_pattern = self._builtin_patterns[self._pattern_names[0]]
@@ -184,12 +191,105 @@ class PatternEngine:
         if name not in self._pattern_names:
             self._pattern_names.append(name)
 
+    def register_strudel_pattern(
+        self,
+        name: str,
+        pattern: "LightPattern",
+        description: str = "",
+        default_color: HSV | None = None,
+    ) -> None:
+        """
+        Register a Strudel-style pattern.
+
+        Args:
+            name: Pattern name for selection
+            pattern: LightPattern instance
+            description: Optional description
+            default_color: Default color (defaults to red)
+        """
+        from .strudel import StrudelPatternWrapper
+
+        wrapper = StrudelPatternWrapper(
+            name=name,
+            pattern=pattern,
+            description=description,
+            default_color=default_color or HSV(0.0, 1.0, 1.0),
+        )
+        self._strudel_patterns[name] = wrapper
+        if name not in self._pattern_names:
+            self._pattern_names.append(name)
+
+    def reload_strudel_patterns(self) -> int:
+        """
+        Hot-reload Strudel patterns from disk.
+
+        Returns:
+            Number of patterns reloaded
+        """
+        import importlib
+        from . import strudel
+        from .strudel import presets
+
+        # Reload the presets module
+        importlib.reload(presets)
+        # Reload strudel package to pick up new presets reference
+        importlib.reload(strudel)
+
+        # Re-import get_strudel_presets after reload
+        from .strudel import get_strudel_presets
+
+        # Update existing patterns (keep current selection)
+        current_name = self._pattern_names[self._current_pattern_index] if self._pattern_names else None
+
+        new_presets = get_strudel_presets()
+        for name, (pattern, description) in new_presets.items():
+            from .strudel import StrudelPatternWrapper
+            wrapper = StrudelPatternWrapper(
+                name=name,
+                pattern=pattern,
+                description=description,
+                default_color=HSV(0.0, 1.0, 1.0),
+            )
+            self._strudel_patterns[name] = wrapper
+            if name not in self._pattern_names:
+                self._pattern_names.append(name)
+
+        # Restore selection if possible
+        if current_name and current_name in self._pattern_names:
+            self._current_pattern_index = self._pattern_names.index(current_name)
+
+        return len(new_presets)
+
+    def _get_light_context(self) -> "LightContext":
+        """Get or create the LightContext from current light setup."""
+        from .strudel import LightContext
+
+        if self._light_context is None or self._light_context.num_lights != self.num_lights:
+            # Build groups dict from light setup
+            groups = {
+                name: list(group.light_indices)
+                for name, group in self.light_setup.groups.items()
+            }
+            self._light_context = LightContext(
+                num_lights=self.num_lights,
+                groups=groups,
+            )
+        return self._light_context
+
     def set_pattern(self, name: str) -> bool:
         """
         Set the current pattern by name.
 
         Returns True if pattern was found and set.
         """
+        # Check for Strudel pattern first
+        if name in self._strudel_patterns:
+            self._current_pattern = None  # Clear classic pattern
+            if name in self._pattern_names:
+                self._current_pattern_index = self._pattern_names.index(name)
+            return True
+
+        # Check for classic pattern
         pattern = self.get_pattern(name)
         if pattern:
             self._current_pattern = pattern
@@ -302,7 +402,17 @@ class PatternEngine:
         if self._active_quick_action:
             return self._compute_quick_action_colors()
 
-        # Normal pattern rendering
+        # Check for Strudel pattern first
+        current_name = self._pattern_names[self._current_pattern_index] if self._pattern_names else None
+        if current_name and current_name in self._strudel_patterns:
+            strudel_wrapper = self._strudel_patterns[current_name]
+            context = self._get_light_context()
+            return strudel_wrapper.compute_colors(
+                beat_position=self.beat_clock.beat_position,
+                context=context,
+            )
+
+        # Normal pattern rendering (classic system)
         pattern = self._current_pattern
         if not pattern:
             return {i: RGB.black() for i in range(self.num_lights)}
@@ -423,13 +533,26 @@ class PatternEngine:
         """Reset beat position to 0."""
         self.beat_clock.reset()
 
+    def get_current_pattern_name(self) -> str:
+        """Get the name of the current pattern (handles both classic and Strudel)."""
+        if not self._pattern_names:
+            return "None"
+        current_name = self._pattern_names[self._current_pattern_index]
+        # For Strudel patterns, use the registered name
+        if current_name in self._strudel_patterns:
+            return current_name
+        # For classic patterns, use the Pattern object's name if available
+        if self._current_pattern:
+            return self._current_pattern.name
+        return current_name
+
     def get_status(self) -> dict:
         """Get current engine status for display."""
         return {
             "bpm": self.beat_clock.bpm,
             "beat_position": self.beat_clock.beat_position,
             "bar_position": self.beat_clock.get_bar_position(),
-            "pattern": self._current_pattern.name if self._current_pattern else None,
+            "pattern": self.get_current_pattern_name(),
             "pattern_index": self._current_pattern_index,
             "palette": (self._active_palette.name if self._active_palette
                        else (self._current_pattern.default_palette.name if self._current_pattern else None)),

@@ -20,7 +20,8 @@ from typing import Optional
 
 import mido
 
-from dj_hue.patterns import PatternEngine, PatternLoader, LightSetup, QuickAction, ColorPalette
+from dj_hue.patterns import PatternEngine, PatternLoader, LightSetup, LightGroup, QuickAction, ColorPalette
+from dj_hue.patterns.strudel import get_strudel_presets
 
 
 # Render thread runs at 50 Hz to match Zigbee transmission rate
@@ -63,7 +64,8 @@ class HueStreamer:
         self._entertainment = None
         self._running = False
         self._lock = threading.Lock()
-        self._channel_map = {}
+        self._num_channels = 0
+        self._light_groups: dict[str, list[int]] = {}  # Group name -> channel indices
 
     def start(self) -> None:
         """Start the streaming connection."""
@@ -96,18 +98,56 @@ class HueStreamer:
                 f"Available: {available}"
             )
 
-        self._channel_map = {}
+        # Count total channels (some lights like OmniGlow have multiple segments)
+        self._num_channels = len(target_config.channels)
+
+        # Detect groups based on shared entertainment service RIDs
+        # Multi-segment lights (like OmniGlow) have multiple channels with the same RID
+        rid_to_channels: dict[str, list[int]] = {}
         for i, channel in enumerate(target_config.channels):
             for member in channel.members:
-                light_id = member.service.rid
-                self._channel_map[light_id] = i
+                rid = member.service.rid
+                if rid not in rid_to_channels:
+                    rid_to_channels[rid] = []
+                rid_to_channels[rid].append(i)
+
+        # Build groups: "strip" for multi-segment lights, "lamps" for singles
+        strip_channels = []
+        lamp_channels = []
+        for rid, channels in rid_to_channels.items():
+            if len(channels) > 1:
+                strip_channels.extend(channels)
+            else:
+                lamp_channels.extend(channels)
+
+        self._light_groups = {
+            "all": list(range(self._num_channels)),
+            "strip": sorted(strip_channels),
+            "lamps": sorted(lamp_channels),
+        }
+
+        # Global odd/even groups (for patterns that alternate all lights)
+        self._light_groups["odd"] = [c for c in range(self._num_channels) if c % 2 == 1]
+        self._light_groups["even"] = [c for c in range(self._num_channels) if c % 2 == 0]
+
+        # Also create odd/even within each group for patterns that need it
+        self._light_groups["strip_odd"] = [c for c in self._light_groups["strip"] if c % 2 == 1]
+        self._light_groups["strip_even"] = [c for c in self._light_groups["strip"] if c % 2 == 0]
+        self._light_groups["lamps_odd"] = [c for c in self._light_groups["lamps"] if c % 2 == 1]
+        self._light_groups["lamps_even"] = [c for c in self._light_groups["lamps"] if c % 2 == 0]
+
+        # Left/right splits (for compatibility with existing patterns)
+        mid = self._num_channels // 2
+        self._light_groups["left"] = list(range(mid))
+        self._light_groups["right"] = list(range(mid, self._num_channels))
 
         self._streaming = Streaming(self._bridge, target_config, ent_conf_repo)
         self._streaming.set_color_space("rgb")
         self._streaming.start_stream()
         self._running = True
 
-        print(f"[HUE] Streaming to {len(self._channel_map)} lights")
+        print(f"[HUE] Streaming to {self._num_channels} channels")
+        print(f"[HUE] Groups: strip={self._light_groups['strip']}, lamps={self._light_groups['lamps']}")
 
     def stop(self) -> None:
         """Stop the streaming connection."""
@@ -121,7 +161,12 @@ class HueStreamer:
 
     @property
     def light_count(self) -> int:
-        return len(self._channel_map)
+        return self._num_channels
+
+    @property
+    def light_groups(self) -> dict[str, list[int]]:
+        """Get detected light groups (strip, lamps, etc.)."""
+        return self._light_groups
 
 
 class EngineState:
@@ -214,18 +259,15 @@ def render_loop(
             message = header + channel_data
             try:
                 dtls_socket.send(message)
-            except Exception as e:
-                print(f"\n[RENDER] Send error: {e}")
+            except Exception:
+                pass  # Suppress errors to keep UI clean
         streaming_service._last_message = message
 
         frame_count += 1
 
-        # Report every 5 seconds
+        # Frame counting (for diagnostics if needed)
         now = time.time()
         if now - last_report >= 5.0:
-            pattern = pattern_engine.current_pattern
-            pattern_name = pattern.name if pattern else "None"
-            print(f"\n[RENDER] frames={frame_count} | Pattern: {pattern_name}")
             frame_count = 0
             last_report = now
 
@@ -292,45 +334,99 @@ class KeyboardListener:
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self._old_settings)
 
 
-def print_help(pattern_engine: PatternEngine):
-    """Print control help."""
-    print("\n" + "=" * 60)
-    print("PATTERNS (press 1-9 to select):")
+# ANSI escape codes for terminal control
+CLEAR_SCREEN = "\033[2J"
+CURSOR_HOME = "\033[H"
+CLEAR_LINE = "\033[K"
+HIDE_CURSOR = "\033[?25l"
+SHOW_CURSOR = "\033[?25h"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+DIM = "\033[2m"
+
+
+def get_pattern_display_name(pattern_engine: PatternEngine, name: str) -> str:
+    """Get display name for a pattern (handles both classic and Strudel)."""
+    # Check if it's a Strudel pattern
+    if name in pattern_engine._strudel_patterns:
+        return name
+    # Otherwise try to get the Pattern object's display name
+    pattern = pattern_engine.get_pattern(name)
+    return pattern.name if pattern else name
+
+
+def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: int, message: str = ""):
+    """Draw the static interface."""
+    current_name = pattern_engine._pattern_names[pattern_engine._current_pattern_index]
+    current_display = get_pattern_display_name(pattern_engine, current_name)
+    is_strudel = current_name in pattern_engine._strudel_patterns
+
+    # Build the interface
+    lines = []
+    lines.append(f"{BOLD}DJ-HUE{RESET} │ {bpm:.0f} BPM │ Bar {bar} Beat {beat}")
+    lines.append("─" * 50)
+
+    # Current pattern (highlighted)
+    pattern_type = "(Strudel)" if is_strudel else ""
+    lines.append(f"{BOLD}Pattern:{RESET} {current_display} {DIM}{pattern_type}{RESET}")
+    lines.append("")
+
+    # Pattern list (first 9)
+    lines.append(f"{DIM}Patterns [1-9]:{RESET}")
     for i, name in enumerate(pattern_engine.pattern_names[:9]):
-        pattern = pattern_engine.get_pattern(name)
-        marker = ">" if pattern == pattern_engine.current_pattern else " "
-        key = i + 1
-        print(f"  {marker} {key}: {pattern.name if pattern else name}")
-    print("\nCONTROLS:")
-    print("  1-9    = Quick select pattern (first 9)")
-    print("  p      = Open pattern selector (all patterns)")
-    print("  [/]    = Previous/Next pattern")
-    print("  Space  = Toggle blackout")
-    print("  f      = Flash (white)")
-    print("  r      = Reset beat position")
-    print("  h      = Show this help")
-    print("  q      = Quit")
-    print("=" * 60 + "\n")
+        display_name = get_pattern_display_name(pattern_engine, name)
+        is_current = (i == pattern_engine._current_pattern_index)
+        marker = "▶" if is_current else " "
+        line = f"  {marker} {i+1}: {display_name}"
+        if is_current:
+            line = f"{BOLD}{line}{RESET}"
+        lines.append(line)
+
+    # Show indicator if there are more patterns
+    total = len(pattern_engine.pattern_names)
+    if total > 9:
+        lines.append(f"  {DIM}... +{total - 9} more (press p){RESET}")
+
+    lines.append("")
+    lines.append(f"{DIM}[/] prev/next  [space] blackout  [f] flash  [p] all patterns  [q] quit{RESET}")
+
+    # Message line
+    if message:
+        lines.append("")
+        lines.append(f"  {message}")
+
+    # Clear and draw
+    output = CURSOR_HOME + CLEAR_SCREEN
+    output += "\n".join(lines)
+    print(output, flush=True)
 
 
 def print_pattern_selector(pattern_engine: PatternEngine) -> None:
     """Print pattern selection menu with all available patterns."""
     patterns = pattern_engine.pattern_names
-    current = pattern_engine.current_pattern
+    current_idx = pattern_engine._current_pattern_index
 
-    print("\n" + "=" * 60)
-    print("  PATTERN SELECTOR")
-    print("  Type number and press Enter, or press Escape to cancel")
-    print("=" * 60)
+    output = CURSOR_HOME + CLEAR_SCREEN
+    lines = []
+    lines.append(f"{BOLD}PATTERN SELECTOR{RESET}")
+    lines.append("─" * 50)
+    lines.append(f"{DIM}Type number + Enter, or Escape to cancel{RESET}")
+    lines.append("")
 
     for i, name in enumerate(patterns):
-        pattern = pattern_engine.get_pattern(name)
-        marker = ">" if pattern == current else " "
-        palette_name = pattern.default_palette.name if pattern else "?"
-        print(f"  {marker} {i + 1:2d}. {pattern.name if pattern else name} [{palette_name}]")
+        display_name = get_pattern_display_name(pattern_engine, name)
+        is_strudel = name in pattern_engine._strudel_patterns
+        marker = "▶" if i == current_idx else " "
+        tag = f"{DIM}(S){RESET}" if is_strudel else ""
+        line = f"  {marker} {i + 1:2d}. {display_name} {tag}"
+        if i == current_idx:
+            line = f"{BOLD}  {marker} {i + 1:2d}. {display_name}{RESET} {tag}"
+        lines.append(line)
 
-    print("=" * 60)
-    print()
+    lines.append("")
+    lines.append("─" * 50)
+
+    print(output + "\n".join(lines), flush=True)
 
 
 def pattern_selector_input(pattern_engine: PatternEngine, keyboard: "KeyboardListener") -> bool:
@@ -410,9 +506,14 @@ def main():
     )
     hue.start()
 
-    # Initialize pattern engine
+    # Initialize pattern engine with detected groups from Hue
     num_lights = hue.light_count
-    light_setup = LightSetup.create_default(num_lights)
+    light_setup = LightSetup(name="hue_auto", total_lights=num_lights)
+
+    # Add detected groups (strip, lamps, etc.)
+    for group_name, indices in hue.light_groups.items():
+        light_setup.add_group(LightGroup(name=group_name, light_indices=indices))
+
     pattern_engine = PatternEngine(light_setup=light_setup)
 
     # Setup pattern loader for hot-reload
@@ -427,6 +528,12 @@ def main():
         loader.start_watching()
         print(f"[PATTERNS] Watching: {patterns_dir}")
 
+    # Register Strudel patterns
+    strudel_presets = get_strudel_presets()
+    for name, (pattern, description) in strudel_presets.items():
+        pattern_engine.register_strudel_pattern(name, pattern, description)
+    print(f"[PATTERNS] Loaded {len(strudel_presets)} Strudel patterns")
+
     # Shared state between MIDI and render threads
     engine_state = EngineState()
 
@@ -440,14 +547,14 @@ def main():
 
     # Create virtual MIDI port
     port_name = "DJ-Hue Clock"
-    print(f"[MIDI] Creating virtual port: {port_name}")
-    print("[MIDI] In Ableton: Preferences -> Link, Tempo & MIDI")
-    print("[MIDI]   - Enable 'Sync' output for 'DJ-Hue Clock'")
-    print()
-
-    print_help(pattern_engine)
 
     keyboard = KeyboardListener()
+
+    # UI state
+    ui_message = "Waiting for MIDI clock..."
+    ui_bar = 1
+    ui_beat = 1
+    ui_bpm = 120.0
 
     def signal_handler(sig, frame):
         engine_state.running = False
@@ -458,16 +565,18 @@ def main():
 
     try:
         keyboard.start()
+        print(HIDE_CURSOR, end="", flush=True)
 
         with mido.open_input(port_name, virtual=True) as port:
             tick_count = 0
             beat_count = 0
             last_beat_time = time.time()
             current_bpm = 120.0
+            last_ui_update = 0
+            pending_reset = False  # Quantized reset - triggers on next beat
 
-            print(f"[MIDI] Listening on '{port_name}'...")
-            print("[MIDI] Waiting for MIDI Clock from Ableton...")
-            print()
+            # Initial draw
+            draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
             while engine_state.running:
                 # Check for keyboard input
@@ -481,45 +590,51 @@ def main():
                     elif key in "123456789":
                         idx = int(key) - 1
                         if pattern_engine.set_pattern_by_index(idx):
-                            pattern = pattern_engine.current_pattern
-                            print(f"\n>>> Pattern: {pattern.name}")
+                            ui_message = ""
+                            draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                     # Previous/Next pattern
                     elif key == "[":
-                        pattern = pattern_engine.prev_pattern()
-                        if pattern:
-                            print(f"\n<<< Pattern: {pattern.name}")
+                        pattern_engine.prev_pattern()
+                        ui_message = ""
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
                     elif key == "]":
-                        pattern = pattern_engine.next_pattern()
-                        if pattern:
-                            print(f"\n>>> Pattern: {pattern.name}")
+                        pattern_engine.next_pattern()
+                        ui_message = ""
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                     # Blackout toggle
                     elif key == " ":
                         is_blackout = pattern_engine.toggle_blackout()
-                        print(f"\n{'[BLACKOUT]' if is_blackout else '[LIGHTS ON]'}")
+                        ui_message = "BLACKOUT" if is_blackout else ""
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                     # Flash
                     elif key == "f":
                         pattern_engine.trigger_quick_action(QuickAction.flash(duration_beats=0.5))
-                        print("\n[FLASH!]")
+                        ui_message = "FLASH!"
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
-                    # Reset beat position
+                    # Reset beat position (quantized to next beat)
                     elif key == "r":
-                        tick_count = 0
-                        beat_count = 0
-                        with engine_state.lock:
-                            engine_state.beat_position = 0.0
-                            engine_state.beat_count = 0
-                        print("\n[Beat position reset]")
+                        pending_reset = True
+                        ui_message = "Reset on next beat..."
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
-                    # Help
-                    elif key == "h":
-                        print_help(pattern_engine)
+                    # Reload patterns from disk
+                    elif key == "R":
+                        try:
+                            count = pattern_engine.reload_strudel_patterns()
+                            ui_message = f"Reloaded {count} patterns"
+                        except Exception as e:
+                            ui_message = f"Reload error: {e}"
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                     # Pattern selector
                     elif key == "p":
                         pattern_selector_input(pattern_engine, keyboard)
+                        ui_message = ""
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                 # Non-blocking receive with timeout
                 msg = port.receive(block=True)
@@ -534,25 +649,35 @@ def main():
                         beat_count += 1
                         now = time.time()
 
+                        # Handle quantized reset
+                        if pending_reset:
+                            pending_reset = False
+                            tick_count = 0
+                            beat_count = 0
+                            ui_bar = 1
+                            ui_beat = 1
+                            with engine_state.lock:
+                                engine_state.beat_position = 0.0
+                                engine_state.beat_count = 0
+                            ui_message = "SYNCED!"
+                            last_beat_time = now
+                            draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                            continue
+
                         # Calculate BPM from beat timing
                         beat_duration = now - last_beat_time
                         if beat_duration > 0 and last_beat_time > 0:
                             current_bpm = 60.0 / beat_duration
                         last_beat_time = now
 
-                        # Beat position in bar (1-4)
-                        beat_in_bar = ((beat_count - 1) % 4) + 1
-                        bar = (beat_count - 1) // 4 + 1
+                        # Update UI state
+                        ui_beat = ((beat_count - 1) % 4) + 1
+                        ui_bar = (beat_count - 1) // 4 + 1
+                        ui_bpm = current_bpm
+                        ui_message = ""
 
-                        # Print beat info
-                        pattern = pattern_engine.current_pattern
-                        pattern_name = pattern.name if pattern else "None"
-                        print(
-                            f"\r[BEAT] Bar {bar} Beat {beat_in_bar} | "
-                            f"{current_bpm:.1f} BPM | Pattern: {pattern_name}        ",
-                            end="",
-                            flush=True,
-                        )
+                        # Redraw on each beat
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                     # Calculate beat_position
                     beat_position = beat_count + tick_count / TICKS_PER_BEAT
@@ -564,38 +689,45 @@ def main():
                         engine_state.beat_count = beat_count
 
                 elif msg.type == "start":
-                    print("\n[MIDI] Start received - resetting to beat 1")
                     tick_count = 0
                     beat_count = 0
                     last_beat_time = 0
+                    ui_bar = 1
+                    ui_beat = 1
+                    ui_message = "MIDI Start"
                     with engine_state.lock:
                         engine_state.beat_position = 0.0
                         engine_state.beat_count = 0
+                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                 elif msg.type == "stop":
-                    print("\n[MIDI] Stop received")
+                    ui_message = "MIDI Stop"
+                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                 elif msg.type == "continue":
-                    print("\n[MIDI] Continue received - resetting to beat 1")
                     tick_count = 0
                     beat_count = 1
                     last_beat_time = time.time()
+                    ui_message = "MIDI Continue"
                     with engine_state.lock:
                         engine_state.beat_position = 1.0
                         engine_state.beat_count = 1
+                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                 elif msg.type == "songpos":
                     position = msg.pos
                     beat_count = position // 4
+                    ui_message = f"Position: beat {beat_count}"
                     with engine_state.lock:
                         engine_state.beat_count = beat_count
-                    print(f"\n[MIDI] Position: beat {beat_count}")
+                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
     except Exception as e:
         print(f"\n[ERROR] {e}")
         import traceback
         traceback.print_exc()
     finally:
+        print(SHOW_CURSOR, end="", flush=True)
         engine_state.running = False
         keyboard.stop()
         if loader:
