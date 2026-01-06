@@ -388,7 +388,7 @@ def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: in
         lines.append(f"  {DIM}... +{total - 9} more (press p){RESET}")
 
     lines.append("")
-    lines.append(f"{DIM}[/] prev/next  [space] blackout  [f] flash  [p] all patterns  [q] quit{RESET}")
+    lines.append(f"{DIM}[/] prev/next  [space] sync  [b] blackout  [f] flash  [p] patterns  [q] quit{RESET}")
 
     # Message line
     if message:
@@ -567,9 +567,13 @@ def main():
         keyboard.start()
         print(HIDE_CURSOR, end="", flush=True)
 
+        # Open MIDI output port to send signals to Ableton
+        midi_out = mido.open_output(port_name + " Out", virtual=True)
+        print(f"[MIDI] Output port: {port_name} Out")
+
         with mido.open_input(port_name, virtual=True) as port:
             tick_count = 0
-            beat_count = 0
+            beat_count = 1  # 1-indexed: beat 1 is the first beat
             last_beat_time = time.time()
             current_bpm = 120.0
             last_ui_update = 0
@@ -603,8 +607,24 @@ def main():
                         ui_message = ""
                         draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
-                    # Blackout toggle
+                    # Spacebar: Send continue to Ableton and reset to beat 1
                     elif key == " ":
+                        # Send MIDI continue to Ableton (resets playhead to bar start)
+                        midi_out.send(mido.Message("continue"))
+                        # Reset our beat tracking to beat 1
+                        tick_count = 0
+                        beat_count = 1
+                        ui_bar = 1
+                        ui_beat = 1
+                        last_beat_time = time.time()
+                        with engine_state.lock:
+                            engine_state.beat_position = 0.0
+                            engine_state.beat_count = 1
+                        ui_message = "SYNC → Bar 1"
+                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+
+                    # Blackout toggle (moved to 'b')
+                    elif key == "b":
                         is_blackout = pattern_engine.toggle_blackout()
                         ui_message = "BLACKOUT" if is_blackout else ""
                         draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
@@ -653,12 +673,12 @@ def main():
                         if pending_reset:
                             pending_reset = False
                             tick_count = 0
-                            beat_count = 0
+                            beat_count = 1  # Reset to beat 1
                             ui_bar = 1
                             ui_beat = 1
                             with engine_state.lock:
                                 engine_state.beat_position = 0.0
-                                engine_state.beat_count = 0
+                                engine_state.beat_count = 1
                             ui_message = "SYNCED!"
                             last_beat_time = now
                             draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
@@ -679,8 +699,8 @@ def main():
                         # Redraw on each beat
                         draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
-                    # Calculate beat_position
-                    beat_position = beat_count + tick_count / TICKS_PER_BEAT
+                    # Calculate beat_position (0-indexed: beat 1 starts at 0.0)
+                    beat_position = (beat_count - 1) + tick_count / TICKS_PER_BEAT
 
                     # Update shared state
                     with engine_state.lock:
@@ -690,14 +710,14 @@ def main():
 
                 elif msg.type == "start":
                     tick_count = 0
-                    beat_count = 0
-                    last_beat_time = 0
+                    beat_count = 1  # Start at beat 1
+                    last_beat_time = time.time()
                     ui_bar = 1
                     ui_beat = 1
                     ui_message = "MIDI Start"
                     with engine_state.lock:
                         engine_state.beat_position = 0.0
-                        engine_state.beat_count = 0
+                        engine_state.beat_count = 1
                     draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                 elif msg.type == "stop":
@@ -706,20 +726,27 @@ def main():
 
                 elif msg.type == "continue":
                     tick_count = 0
-                    beat_count = 1
+                    beat_count = 1  # Reset to beat 1
                     last_beat_time = time.time()
+                    ui_bar = 1
+                    ui_beat = 1
                     ui_message = "MIDI Continue"
                     with engine_state.lock:
-                        engine_state.beat_position = 1.0
+                        engine_state.beat_position = 0.0
                         engine_state.beat_count = 1
                     draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
                 elif msg.type == "songpos":
+                    # Song position is in "MIDI beats" (16th notes), 4 per quarter note
                     position = msg.pos
-                    beat_count = position // 4
-                    ui_message = f"Position: beat {beat_count}"
+                    beat_count = position // 4 + 1  # 1-indexed
+                    tick_count = (position % 4) * (TICKS_PER_BEAT // 4)
+                    ui_beat = ((beat_count - 1) % 4) + 1
+                    ui_bar = (beat_count - 1) // 4 + 1
+                    ui_message = f"Position: Bar {ui_bar} Beat {ui_beat}"
                     with engine_state.lock:
                         engine_state.beat_count = beat_count
+                        engine_state.beat_position = (beat_count - 1) + tick_count / TICKS_PER_BEAT
                     draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
     except Exception as e:
@@ -733,6 +760,11 @@ def main():
         if loader:
             loader.stop_watching()
         render_thread.join(timeout=1.0)
+        # Close MIDI output port
+        try:
+            midi_out.close()
+        except Exception:
+            pass
         print("\n[SHUTDOWN] Stopping Hue streaming...")
         hue.stop()
         print("[SHUTDOWN] Done")
