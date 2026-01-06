@@ -1,17 +1,64 @@
 # Scene System
 
-> **Purpose**: This document is for Claude Code to track ideas, TODOs, and implementation approaches for the scene system.
+> **Purpose**: This document covers the scene system for organizing and switching patterns during live sets.
 
 ## Overview
 
-Scenes are the primary way to control lighting during a live set. A scene combines:
-- A pattern (the lighting effect)
-- Modifiers (speed, intensity, hue shift)
-- Transition settings
+Scenes are the primary way to control lighting during a live set. The current implementation provides:
+- Pattern selection via keyboard (1-9 keys)
+- Next/previous navigation (`[` and `]` keys)
+- Quick actions (flash, blackout)
 
-## Core Data Structures
+## Current Implementation
 
-### Scene
+### Pattern Selection
+
+The PatternEngine maintains a list of available patterns and supports selection by index:
+
+```python
+# Select by index (0-based)
+engine.set_pattern_by_index(0)  # First pattern
+engine.set_pattern_by_index(3)  # Fourth pattern
+
+# Select by name
+engine.set_pattern("s_chase_smooth")
+
+# Navigation
+engine.next_pattern()
+engine.prev_pattern()
+```
+
+### Keyboard Controls
+
+| Key | Action |
+|-----|--------|
+| `1-9` | Select pattern 1-9 |
+| `0` | Select pattern 10 |
+| `[` | Previous pattern |
+| `]` | Next pattern |
+| `Space` | Toggle blackout |
+| `f` | Flash (momentary white) |
+| `r` | Reset beat position |
+| `h` | Show help |
+| `q` | Quit |
+
+### Quick Actions
+
+Momentary effects that don't change the current pattern:
+
+```python
+from dj_hue.patterns import QuickAction
+
+# Flash all lights white
+engine.trigger_quick_action(QuickAction.flash(duration_beats=0.5))
+
+# Toggle blackout
+engine.toggle_blackout()
+```
+
+## Future: Scene Data Structure
+
+A more complete scene system could include:
 
 ```python
 @dataclass
@@ -24,131 +71,57 @@ class Scene:
     speed_scale: float = 1.0      # 0.5 = half speed, 2.0 = double speed
     hue_shift: float = 0.0        # 0.0-1.0, shifts all colors
 
-    # Transition settings
-    transition: SceneTransition = field(default_factory=SceneTransition)
-
     # Tags for organization/auto-pilot
     tags: list[str] = field(default_factory=list)
 ```
 
-### SceneTransition
+### Scene Modifiers
 
-```python
-@dataclass
-class SceneTransition:
-    duration_beats: float = 4.0
-    style: str = "crossfade"  # crossfade, cut, fade_to_black
-```
+**intensity_scale**: Multiplies all brightness values
+- 0.5 = dim, intimate
+- 1.0 = normal
+- 1.5 = bright, energetic
 
-### SceneBank
+**speed_scale**: Multiplies pattern speed
+- 0.5 = half speed
+- 1.0 = normal
+- 2.0 = double speed
 
-Collection of scenes for a set:
-
-```python
-@dataclass
-class SceneBank:
-    name: str
-    scenes: list[Scene] = field(default_factory=list)
-
-    def get_scene(self, name: str) -> Optional[Scene]
-    def get_scene_by_index(self, idx: int) -> Optional[Scene]
-```
-
-## Manual Switching
-
-The primary interaction model for now:
-
-### Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| 1-9 | Activate scene 1-9 |
-| 0 | Activate scene 10 |
-| [ | Previous scene |
-| ] | Next scene |
-| Space | Blackout toggle |
-| Enter | Flash (momentary white) |
+**hue_shift**: Shifts all colors around the color wheel
+- 0.0 = no shift
+- 0.5 = complementary colors
 
 ### Example Scene Bank
 
 ```python
-scene_bank = SceneBank(
-    name="house_set",
-    scenes=[
-        Scene(name="Ambient", pattern_name="warm_pulse", intensity_scale=0.6, tags=["intro", "chill"]),
-        Scene(name="Groove", pattern_name="slow_wave", tags=["verse"]),
-        Scene(name="Build", pattern_name="chase", speed_scale=1.5, tags=["build"]),
-        Scene(name="Drop", pattern_name="strobe", tags=["drop", "peak"]),
-        Scene(name="Breakdown", pattern_name="sine_wave", intensity_scale=0.4, tags=["breakdown"]),
-    ]
-)
+scenes = [
+    Scene(name="Ambient", pattern_name="s_gentle", intensity_scale=0.6, tags=["intro", "chill"]),
+    Scene(name="Groove", pattern_name="s_chase_smooth", tags=["verse"]),
+    Scene(name="Build", pattern_name="s_strobe_build", tags=["build"]),
+    Scene(name="Drop", pattern_name="s_stagger", tags=["drop", "peak"]),
+    Scene(name="Breakdown", pattern_name="s_color_wash", intensity_scale=0.4, tags=["breakdown"]),
+]
 ```
 
-## Scene Modifiers
-
-### intensity_scale
-Multiplies all brightness values:
-- 0.5 = dim, intimate
-- 1.0 = normal
-- 1.5 = bright, energetic
-- 2.0 = maximum (clips at 1.0)
-
-### speed_scale
-Multiplies the beat position for phasers:
-- 0.5 = half speed (patterns take twice as long)
-- 1.0 = normal
-- 2.0 = double speed (patterns complete in half the time)
-
-### hue_shift
-Shifts all colors around the color wheel:
-- 0.0 = no shift
-- 0.5 = complementary colors
-- Useful for changing mood without changing pattern
-
-## TODO
-
-- [ ] Implement Scene dataclass
-- [ ] Implement SceneTransition dataclass
-- [ ] Implement SceneBank class
-- [ ] Add keyboard shortcuts for scene switching
-- [ ] Implement crossfade transitions
-- [ ] Add scene persistence (save/load banks)
-
 ## Ideas
-
-### Quick Actions
-Momentary effects that don't change the scene:
-- Flash: All lights white for 1 beat
-- Blackout: All lights off until released
-- Freeze: Hold current colors
-- Color bump: Shift hue momentarily
 
 ### Scene Chains
 Automatic progression through scenes:
 ```python
-chain = SceneChain([
-    ChainStep(scene="Build", duration_bars=4),
-    ChainStep(scene="Drop", duration_bars=8),
-    ChainStep(scene="Breakdown", duration_bars=8),
-])
+chain = [
+    ("Build", 4),      # 4 bars
+    ("Drop", 8),       # 8 bars
+    ("Breakdown", 8),  # 8 bars
+]
 ```
 
 ### Conditional Scenes
-Scenes that activate based on conditions:
-```python
-Scene(
-    name="Auto-Drop",
-    pattern_name="strobe",
-    trigger=Trigger(
-        type="energy_threshold",
-        value=0.8,
-        duration_beats=2,  # Must sustain for 2 beats
-    )
-)
-```
+Scenes that activate based on conditions (e.g., energy threshold).
+
+### Scene Persistence
+Save/load scene banks to YAML files.
 
 ## Related Files
 
-- `src/dj_hue/patterns/scenes.py` - Implementation (to create)
-- `src/dj_hue/main.py` - Keyboard handling
-- `config.yaml` - Scene bank definitions
+- `src/dj_hue/patterns/engine.py` - PatternEngine with pattern selection
+- `src/dj_hue/midi_pattern_mode.py` - Keyboard handling

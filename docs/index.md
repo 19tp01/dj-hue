@@ -6,18 +6,19 @@
 
 DJ-Hue is a beat-synchronized lighting control system for Philips Hue lights, designed for live DJ performances. The pattern engine provides:
 
-- **Python-based patterns** for maximum flexibility
+- **Strudel-inspired pattern language** - Composable, functional patterns for expressive lighting
 - **Light grouping** (zones like left/right, front/back) AND independent per-light control
+- **Mini notation** for quick pattern creation (`"all"`, `"left right"`, `"0 1 2 3"`)
+- **ADSR envelopes** for flash-and-fade effects
 - **Scene system** for easy manual switching during sets
 - **Hot-reload** for live pattern editing
-- **Beat-synchronized phasers** (LFOs) instead of raw audio reactivity
 
 ## Component Documentation
 
 | Document | Description |
 |----------|-------------|
-| [Pattern Engine](./pattern-engine.md) | Core engine design, PatternDef format, rendering pipeline |
-| [Light Groups](./groups.md) | LightGroup, LightSetup, ZoneType definitions |
+| [Pattern Engine](./pattern-engine.md) | Strudel pattern system, constructors, transformations |
+| [Light Groups](./groups.md) | LightGroup, LightSetup, LightContext definitions |
 | [Scene System](./scenes.md) | Scenes, SceneBank, transitions, manual control |
 | [Hot-Reload](./hot-reload.md) | File watching, pattern loading, live updates |
 | [Future Ideas](./future-ideas.md) | Build/drop detection, GUI, auto-pilot, Serato integration |
@@ -26,38 +27,67 @@ DJ-Hue is a beat-synchronized lighting control system for Philips Hue lights, de
 
 Two modes are available:
 
-### Audio Mode (`dj-hue-patterns`)
-```
-Audio Input → Beat Detector → BeatClock → Phasers → RGB Colors → Hue Streaming
-                                ↑
-                           PatternDef
-                          (group effects)
-                                ↑
-                            Scene
-                         (modifiers)
-```
-
 ### MIDI Clock Mode (`dj-hue-midi-patterns`) - Recommended
 ```
-Ableton MIDI Clock → Virtual Port → BeatClock → Phasers → RGB Colors → Hue Streaming
-    (24 ticks/beat)                     ↑            ↓
-                                   PatternDef    Render Thread
-                                  (group effects)   (50 Hz)
-                                        ↑
-                                    Scene
-                                 (modifiers)
+Ableton MIDI Clock → Virtual Port → BeatClock → PatternEngine → RGB Colors → Hue Streaming
+    (24 ticks/beat)                     ↑               ↓
+                                   Strudel         Render Thread
+                                   Patterns           (50 Hz)
+```
+
+### Audio Mode (`dj-hue-patterns`)
+```
+Audio Input → Beat Detector → BeatClock → PatternEngine → RGB Colors → Hue Streaming
+                                ↑
+                           Strudel Patterns
 ```
 
 The MIDI clock mode provides more accurate beat sync by receiving timing directly from Ableton.
+
+## Quick Start: Strudel Patterns
+
+The Strudel system is the recommended way to create patterns:
+
+```python
+from dj_hue.patterns.strudel import light, stack, cat
+
+# Simple flash on every beat
+beat_flash = light("all all all all").envelope(attack=0.02, fade=0.2).color("white")
+
+# Chase that runs through all lights
+chase = light("all").seq().envelope(attack=0.1, fade=0.3).color("cyan")
+
+# Stagger flash: random sequence, white flash fading to red
+stagger = (
+    light("all")
+    .seq()
+    .shuffle()
+    .envelope(attack=0.05, fade=1.0, sustain=0.5)
+    .color(flash="white", fade="red")
+)
+
+# Strobe build: doubles speed every 2 bars
+strobe_build = cat(
+    light("all ~").fast(2),   # Quarter notes
+    light("all ~").fast(4),   # 8th notes
+    light("all ~").fast(8),   # 16th notes
+    light("all ~").fast(16),  # 32nd notes
+).slow(2).color("white")
+```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/dj_hue/lights/effects.py` | Core primitives: Phaser, BeatClock, RGB, waveforms |
-| `src/dj_hue/patterns/` | Pattern engine module |
-| `src/dj_hue/midi_pattern_mode.py` | MIDI clock integration with PatternEngine |
-| `src/dj_hue/pattern_mode.py` | Audio-based PatternEngine mode |
+| `src/dj_hue/patterns/strudel/` | Strudel pattern system |
+| `src/dj_hue/patterns/strudel/constructors.py` | `light()`, `stack()`, `cat()` |
+| `src/dj_hue/patterns/strudel/pattern.py` | `LightPattern` with chainable transforms |
+| `src/dj_hue/patterns/strudel/presets.py` | Ready-to-use pattern presets |
+| `src/dj_hue/patterns/strudel/envelope.py` | ADSR envelopes |
+| `src/dj_hue/patterns/engine.py` | PatternEngine (renders patterns) |
+| `src/dj_hue/patterns/groups.py` | Light grouping system |
+| `src/dj_hue/lights/effects.py` | Core primitives: Phaser, BeatClock, RGB |
+| `src/dj_hue/midi_pattern_mode.py` | MIDI clock integration |
 | `patterns/` | User pattern files (hot-reloaded) |
 | `config.yaml` | Configuration including light setup |
 
@@ -68,11 +98,16 @@ The MIDI clock mode provides more accurate beat sync by receiving timing directl
 - [x] FFT beat detection
 - [x] Pattern engine with groups (`src/dj_hue/patterns/engine.py`)
 - [x] Light grouping system (`src/dj_hue/patterns/groups.py`)
-- [x] Pattern definitions (`src/dj_hue/patterns/pattern_def.py`)
-- [x] Scene system (`src/dj_hue/patterns/scenes.py`)
+- [x] **Strudel pattern system** (`src/dj_hue/patterns/strudel/`)
+  - [x] Mini notation parser (`"all"`, `"left right"`, `"0 1 2 3"`)
+  - [x] Time transforms: `fast()`, `slow()`, `early()`, `late()`
+  - [x] Structural transforms: `seq()`, `shuffle()`, `rev()`
+  - [x] Combinators: `stack()`, `cat()`
+  - [x] ADSR envelopes with flash/fade colors
+  - [x] Named colors and color transforms
+  - [x] Pre-built pattern presets
+- [x] Classic pattern definitions (Pattern, GroupEffect, Phaser)
 - [x] Hot-reload with watchdog (`src/dj_hue/patterns/loader.py`)
-- [x] Built-in patterns (sine_wave, chase, pulse, strobe, left_right)
-- [x] Example user patterns (`patterns/`)
 - [x] MIDI clock integration (`midi_pattern_mode.py`)
 - [x] Audio-based mode (`pattern_mode.py`)
 - [ ] GUI (future phase)
@@ -100,6 +135,7 @@ The MIDI clock mode provides more accurate beat sync by receiving timing directl
 
 ## Quick Links
 
-- [Example Pattern](./pattern-engine.md#example-pattern)
+- [Strudel Pattern Examples](./pattern-engine.md#examples)
+- [Mini Notation Reference](./pattern-engine.md#mini-notation)
 - [Creating a Light Setup](./groups.md#creating-a-setup)
-- [Switching Scenes](./scenes.md#manual-switching)
+- [Pre-built Pattern Presets](./pattern-engine.md#presets)
