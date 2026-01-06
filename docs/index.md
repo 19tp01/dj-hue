@@ -24,20 +24,7 @@ DJ-Hue is a beat-synchronized lighting control system for Philips Hue lights, de
 
 ## Current Architecture
 
-Two modes are available:
-
-### Audio Mode (`dj-hue-patterns`)
-```
-Audio Input → Beat Detector → BeatClock → Phasers → RGB Colors → Hue Streaming
-                                ↑
-                           PatternDef
-                          (group effects)
-                                ↑
-                            Scene
-                         (modifiers)
-```
-
-### MIDI Clock Mode (`dj-hue-midi-patterns`) - Recommended
+### MIDI Clock Mode (`dj-hue`) - Recommended
 ```
 Ableton MIDI Clock → Virtual Port → BeatClock → Phasers → RGB Colors → Hue Streaming
     (24 ticks/beat)                     ↑            ↓
@@ -48,7 +35,7 @@ Ableton MIDI Clock → Virtual Port → BeatClock → Phasers → RGB Colors →
                                  (modifiers)
 ```
 
-The MIDI clock mode provides more accurate beat sync by receiving timing directly from Ableton.
+The MIDI clock mode provides accurate beat sync by receiving timing directly from Ableton or similar DAWs.
 
 ## Key Files
 
@@ -57,7 +44,7 @@ The MIDI clock mode provides more accurate beat sync by receiving timing directl
 | `src/dj_hue/lights/effects.py` | Core primitives: Phaser, BeatClock, RGB, waveforms |
 | `src/dj_hue/patterns/` | Pattern engine module |
 | `src/dj_hue/midi_pattern_mode.py` | MIDI clock integration with PatternEngine |
-| `src/dj_hue/pattern_mode.py` | Audio-based PatternEngine mode |
+| `src/dj_hue/midi_hue.py` | Original MIDI clock mode (without PatternEngine) |
 | `patterns/` | User pattern files (hot-reloaded) |
 | `config.yaml` | Configuration including light setup |
 
@@ -74,17 +61,16 @@ The MIDI clock mode provides more accurate beat sync by receiving timing directl
 - [x] Built-in patterns (sine_wave, chase, pulse, strobe, left_right)
 - [x] Example user patterns (`patterns/`)
 - [x] MIDI clock integration (`midi_pattern_mode.py`)
-- [x] Audio-based mode (`pattern_mode.py`)
+- [x] Original MIDI mode (`midi_hue.py`)
 - [ ] GUI (future phase)
 
 ## Entry Points
 
 | Command | Description |
 |---------|-------------|
-| `dj-hue-midi-patterns` | **Recommended** - MIDI clock mode with PatternEngine |
-| `dj-hue-patterns` | Audio-based mode with PatternEngine |
+| `dj-hue` | **Recommended** - MIDI clock mode with PatternEngine |
 | `dj-hue-midi` | Original MIDI clock mode (without PatternEngine) |
-| `dj-hue` | Original audio-reactive mode |
+| `python -m dj_hue` | Same as `dj-hue` |
 
 ## Keyboard Controls (Pattern Modes)
 
