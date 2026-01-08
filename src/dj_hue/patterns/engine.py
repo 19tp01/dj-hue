@@ -373,6 +373,8 @@ class PatternEngine:
                 for zone_name, zone_def in self.light_setup.zone_config.zones.items():
                     zones[zone_name] = zone_def.light_indices
                     available_zones.append(zone_name)
+                    # Also register zones as groups so light("ceiling") etc. works
+                    groups[zone_name] = zone_def.light_indices
 
             self._light_context = LightContext(
                 num_lights=self.num_lights,

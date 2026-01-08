@@ -514,6 +514,22 @@ def main():
     for group_name, indices in hue.light_groups.items():
         light_setup.add_group(LightGroup(name=group_name, light_indices=indices))
 
+    # Auto-detect zones from group names
+    ceiling_indices = hue.light_groups.get("lamps", [])
+    perimeter_indices = hue.light_groups.get("strip", [])
+    print(f"[ZONES] Detected ceiling={ceiling_indices}, perimeter={perimeter_indices}")
+
+    if ceiling_indices and perimeter_indices:
+        from .patterns.zones import ZoneConfig
+        zone_config = ZoneConfig.create_dual_zone(
+            ceiling_indices=list(ceiling_indices),
+            perimeter_indices=list(perimeter_indices)
+        )
+        light_setup.zone_config = zone_config
+        print(f"[ZONES] Created dual-zone config")
+    else:
+        print(f"[ZONES] Missing zones - spatial patterns will be disabled")
+
     pattern_engine = PatternEngine(light_setup=light_setup)
 
     # Setup pattern loader for hot-reload
@@ -533,6 +549,11 @@ def main():
     for name, (pattern, description) in strudel_presets.items():
         pattern_engine.register_strudel_pattern(name, pattern, description)
     print(f"[PATTERNS] Loaded {len(strudel_presets)} Strudel patterns")
+
+    # Load spatial patterns (if zones are configured)
+    if light_setup.zone_config:
+        spatial_count = pattern_engine.load_spatial_presets()
+        print(f"[PATTERNS] Loaded {spatial_count} spatial patterns")
 
     # Shared state between MIDI and render threads
     engine_state = EngineState()
