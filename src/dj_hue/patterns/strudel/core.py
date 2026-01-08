@@ -182,10 +182,14 @@ class LightContext:
         num_lights: Total number of lights in the setup
         groups: Mapping of group names to light indices
         cycle_beats: Number of beats per cycle (default 4 for 4/4 time)
+        zones: Mapping of zone names to light indices
+        available_zones: List of configured zone names
     """
     num_lights: int
     groups: dict[str, list[int]] = field(default_factory=dict)
     cycle_beats: float = 4.0
+    zones: dict[str, list[int]] = field(default_factory=dict)
+    available_zones: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         # Ensure "all" group exists
@@ -199,6 +203,22 @@ class LightContext:
         Returns empty list if group not found.
         """
         return self.groups.get(name, [])
+
+    def resolve_zone(self, name: str) -> list[int]:
+        """
+        Resolve a zone name to light indices.
+
+        Returns empty list if zone not found.
+        """
+        return self.zones.get(name, [])
+
+    def has_zone(self, name: str) -> bool:
+        """Check if a zone is available."""
+        return name in self.available_zones
+
+    def has_dual_zones(self) -> bool:
+        """Check if both ceiling and perimeter zones are available."""
+        return "ceiling" in self.available_zones and "perimeter" in self.available_zones
 
     @classmethod
     def default(cls, num_lights: int = 6) -> "LightContext":
@@ -222,4 +242,26 @@ class LightContext:
                 "odd": list(range(1, num_lights, 2)),
                 "even": list(range(0, num_lights, 2)),
             },
+        )
+
+    @classmethod
+    def with_zones(
+        cls,
+        num_lights: int,
+        groups: dict[str, list[int]],
+        zones: dict[str, list[int]],
+    ) -> "LightContext":
+        """
+        Create a context with zone information.
+
+        Args:
+            num_lights: Total light count
+            groups: Group name to light indices mapping
+            zones: Zone name to light indices mapping
+        """
+        return cls(
+            num_lights=num_lights,
+            groups=groups,
+            zones=zones,
+            available_zones=list(zones.keys()),
         )

@@ -5,9 +5,14 @@ Groups allow patterns to reference logical collections of lights (like "left", "
 rather than specific indices. This makes patterns portable across different setups.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterator
+from typing import Iterator, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .zones import ZoneConfig
 
 
 class ZoneType(Enum):
@@ -52,10 +57,48 @@ class LightSetup:
     A setup defines the total number of lights and how they're organized into groups.
     The same pattern can work with different setups - it just references group names
     and the setup defines which lights are in each group.
+
+    Optionally includes zone configuration for spatial patterns (ceiling, perimeter).
     """
     name: str
     total_lights: int
     groups: dict[str, LightGroup] = field(default_factory=dict)
+    zone_config: "ZoneConfig | None" = None
+
+    @property
+    def available_zones(self) -> list[str]:
+        """List of configured zone names."""
+        if self.zone_config:
+            return self.zone_config.available_zones()
+        return []
+
+    @property
+    def has_dual_zones(self) -> bool:
+        """True if both ceiling and perimeter are configured."""
+        if self.zone_config:
+            return self.zone_config.has_dual_zones
+        return False
+
+    @property
+    def primary_zone(self) -> str:
+        """The fallback zone name (usually perimeter)."""
+        if self.zone_config:
+            return self.zone_config.primary_zone
+        return "all"
+
+    def get_zone_lights(self, zone_name: str) -> list[int]:
+        """Get all light indices for a zone."""
+        if self.zone_config:
+            zone = self.zone_config.get_zone(zone_name)
+            if zone:
+                return zone.light_indices
+        return []
+
+    def has_zone(self, zone_name: str) -> bool:
+        """Check if a zone exists."""
+        if self.zone_config:
+            return self.zone_config.has_zone(zone_name)
+        return False
 
     def get_group(self, name: str) -> LightGroup | None:
         """Get a group by name, or None if not found."""
@@ -139,12 +182,31 @@ class LightSetup:
             "groups": [
                 {"name": "stage_left", "indices": [0, 1]},
                 {"name": "stage_right", "indices": [6, 7]},
-            ]
+            ],
+            "zones": {
+                "ceiling": {
+                    "position": "ceiling",
+                    "groups": [{"name": "omniglow", "indices": [0, 1, 2, 3]}],
+                    "is_primary": false
+                },
+                "perimeter": {
+                    "position": "wall",
+                    "groups": [{"name": "left", "indices": [4, 5]}],
+                    "is_primary": true
+                }
+            }
         }
         """
+        # Parse zone configuration if present
+        zone_config = None
+        if "zones" in config:
+            from .zones import ZoneConfig
+            zone_config = ZoneConfig.from_config(config)
+
         setup = cls(
             name=config.get("name", "custom"),
             total_lights=config.get("total_lights", 6),
+            zone_config=zone_config,
         )
 
         # Add configured groups
@@ -162,6 +224,18 @@ class LightSetup:
                 zone_type=zone_type,
             )
             setup.add_group(group)
+
+        # If zones are defined, auto-create groups from zone definitions
+        if zone_config:
+            for zone_name, zone_def in zone_config.zones.items():
+                # Create a group for the zone itself
+                if zone_name not in setup.groups:
+                    setup.groups[zone_name] = LightGroup(
+                        name=zone_name,
+                        light_indices=zone_def.light_indices,
+                    )
+                # Also add any sub-groups defined in the zone
+                # (these were already added to the zone's group list during parsing)
 
         # Always ensure "all" group exists
         if "all" not in setup.groups:
