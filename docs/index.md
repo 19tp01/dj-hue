@@ -17,7 +17,7 @@ DJ-Hue is a beat-synchronized lighting control system for Philips Hue lights, de
 
 | Document | Description |
 |----------|-------------|
-| [Pattern Engine](./pattern-engine.md) | Strudel pattern system, constructors, transformations |
+| [Strudel System](./strudel-system.md) | Comprehensive pattern system docs: architecture, philosophy, original Strudel comparison |
 | [Light Groups](./groups.md) | LightGroup, LightSetup, LightContext definitions |
 | [Scene System](./scenes.md) | Scenes, SceneBank, transitions, manual control |
 | [Hot-Reload](./hot-reload.md) | File watching, pattern loading, live updates |
@@ -135,7 +135,9 @@ strobe_build = cat(
 
 ## Quick Links
 
-- [Strudel Pattern Examples](./pattern-engine.md#examples)
-- [Mini Notation Reference](./pattern-engine.md#mini-notation)
+- [Strudel Pattern Examples](./strudel-system.md#examples)
+- [Mini Notation Reference](./strudel-system.md#mini-notation-reference)
 - [Creating a Light Setup](./groups.md#creating-a-setup)
-- [Pre-built Pattern Presets](./pattern-engine.md#presets)
+- [Pre-built Pattern Presets](./strudel-system.md#presets)
+- [Architecture Philosophy](./strudel-system.md#architectural-philosophy)
+- [Comparison with Original Strudel](./strudel-system.md#comparison-with-original-strudel)

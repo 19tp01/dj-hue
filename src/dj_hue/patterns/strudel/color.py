@@ -4,7 +4,7 @@ Color utilities for the Strudel pattern system.
 Provides color name resolution and color manipulation functions.
 """
 
-from ..classic.pattern_def import HSV
+from .core.types import HSV
 
 
 # Named colors (hue, saturation, value)

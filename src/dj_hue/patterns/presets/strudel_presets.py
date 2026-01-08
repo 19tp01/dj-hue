@@ -100,6 +100,35 @@ def get_strudel_presets() -> dict[str, tuple[LightPattern, str]]:
             rainbow_autonomous(),
             "Autonomous rainbow - random colors, 2-4 beats on/off",
         ),
+        # === CLASSIC PATTERN EQUIVALENTS (replacing engine.py builtins) ===
+        "sine_wave": (
+            sine_wave(),
+            "Sine wave with phase spread across lights",
+        ),
+        "slow_wave": (
+            slow_wave(),
+            "Slow ambient wave",
+        ),
+        "chase": (
+            classic_chase(),
+            "Sawtooth chase pattern",
+        ),
+        "fast_chase": (
+            fast_chase_classic(),
+            "Fast chase with cool colors",
+        ),
+        "pulse": (
+            pulse(),
+            "All lights pulse together on beat",
+        ),
+        "strobe": (
+            strobe(),
+            "Fast strobe on 16th notes",
+        ),
+        "left_right": (
+            left_right(),
+            "Left/right alternating with red/blue",
+        ),
     }
 
 
@@ -439,4 +468,133 @@ def rainbow_autonomous() -> LightPattern:
             "purple",
             "magenta",
         ],
+    )
+
+
+# =============================================================================
+# CLASSIC PATTERN EQUIVALENTS
+# =============================================================================
+# These replace the patterns from get_builtin_patterns() in engine.py
+# They use .modulate() for continuous LFO-style animation
+
+
+def sine_wave() -> LightPattern:
+    """
+    Sine wave with phase spread across lights.
+
+    Replaces Pattern.create_simple with waveform="sine", phase_spread=True.
+    Each light oscillates in a sine wave, phases spread across the group.
+    """
+    return (
+        light("all")
+        .seq()  # Sequence creates phase spread
+        .modulate(
+            wave="sine",
+            frequency=0.5,  # 2 beats per cycle (matches beats_per_cycle=2.0)
+            min_intensity=0.1,
+            max_intensity=1.0,
+        )
+        .color("red")
+    )
+
+
+def slow_wave() -> LightPattern:
+    """
+    Slow ambient wave - gentle pulsing.
+
+    Replaces Pattern.create_simple with beats_per_cycle=4.0.
+    """
+    return (
+        light("all")
+        .seq()
+        .modulate(
+            wave="sine",
+            frequency=0.25,  # 4 beats per cycle
+            min_intensity=0.1,
+            max_intensity=1.0,
+        )
+        .color("orange")
+    )
+
+
+def classic_chase() -> LightPattern:
+    """
+    Sawtooth chase pattern.
+
+    Replaces Pattern.create_chase with waveform="sawtooth".
+    """
+    return (
+        light("all")
+        .seq()
+        .modulate(
+            wave="saw",
+            frequency=0.5,  # 2 beats per cycle
+            min_intensity=0.05,
+            max_intensity=1.0,
+        )
+        .color("red")
+    )
+
+
+def fast_chase_classic() -> LightPattern:
+    """
+    Fast chase pattern with cool colors.
+
+    Replaces Pattern.create_chase with beats_per_cycle=1.0.
+    """
+    return (
+        light("all")
+        .seq()
+        .modulate(
+            wave="saw",
+            frequency=1.0,  # 1 beat per cycle = faster
+            min_intensity=0.05,
+            max_intensity=1.0,
+        )
+        .color("cyan")
+    )
+
+
+def pulse() -> LightPattern:
+    """
+    All lights pulse together on beat.
+
+    Replaces Pattern.create_pulse - unified pulsing without phase spread.
+    """
+    return (
+        light("all")
+        .modulate(
+            wave="sine",
+            frequency=1.0,  # 1 beat per cycle
+            min_intensity=0.1,
+            max_intensity=1.0,
+        )
+        .color("red")
+    )
+
+
+def strobe() -> LightPattern:
+    """
+    Fast strobe on 16th notes.
+
+    Replaces Pattern.create_strobe with square wave.
+    """
+    return light("all ~").fast(8).color("white")  # 16 events per bar = 16th notes
+
+
+def left_right() -> LightPattern:
+    """
+    Left/right alternating with red/blue.
+
+    Replaces Pattern.create_left_right.
+    """
+    return stack(
+        light("left")
+        .modulate(wave="sine", frequency=0.5, min_intensity=0.1, max_intensity=1.0)
+        .color("red"),
+        light("right")
+        .modulate(
+            wave="sine", frequency=0.5, min_intensity=0.1, max_intensity=1.0, phase=0.5
+        )
+        .color("blue"),
     )

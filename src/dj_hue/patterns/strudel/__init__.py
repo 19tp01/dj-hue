@@ -26,10 +26,16 @@ Example:
         light("all ~").fast(8),
         light("all ~").fast(16),
     ).slow(2)
+
+    # Zone targeting
+    spatial = stack(
+        strobe().zone("ceiling"),
+        chase().zone("perimeter"),
+    )
 """
 
 # Core types
-from .core.types import TimeSpan, LightHap, LightValue, LightContext
+from .core.types import TimeSpan, LightHap, LightValue, LightContext, HSV
 from .core.pattern import LightPattern
 from .core.envelope import Envelope
 
@@ -37,7 +43,7 @@ from .core.envelope import Envelope
 from .modulator import Modulator, WaveType
 
 # DSL constructors
-from .dsl.constructors import light, stack, cat, all_lights, sequence, zone, ceiling, perimeter
+from .dsl.constructors import light, stack, cat, all_lights, sequence, ceiling, perimeter
 
 # Scheduler
 from .scheduler import PatternScheduler, StrudelPatternWrapper
@@ -52,40 +58,28 @@ from .color import (
     NAMED_COLORS,
 )
 
-# Spatial/Layered patterns
-from .spatial.layered import LayeredPattern, ZoneLayer
-from .spatial.combiner import (
-    combine_zone_layers,
-    create_spatial_delay_pattern,
-    create_echo_pattern,
-    create_alternating_zones_pattern,
-)
-
 __all__ = [
     # Core types
     "TimeSpan",
     "LightHap",
     "LightValue",
     "LightContext",
+    "HSV",
     "LightPattern",
     "Envelope",
     "Modulator",
     "WaveType",
-
     # Constructors
     "light",
     "stack",
     "cat",
     "all_lights",
     "sequence",
-    "zone",
     "ceiling",
     "perimeter",
-
     # Scheduler
     "PatternScheduler",
     "StrudelPatternWrapper",
-
     # Colors
     "color_from_name",
     "resolve_color",
@@ -93,12 +87,4 @@ __all__ = [
     "dim",
     "saturate",
     "NAMED_COLORS",
-
-    # Layered patterns
-    "LayeredPattern",
-    "ZoneLayer",
-    "combine_zone_layers",
-    "create_spatial_delay_pattern",
-    "create_echo_pattern",
-    "create_alternating_zones_pattern",
 ]

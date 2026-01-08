@@ -3,37 +3,63 @@ Pattern engine for DJ-Hue.
 
 This module provides the pattern engine with:
 - Light grouping (zones like left/right, front/back)
-- Declarative pattern definitions
-- Color palettes for flexible color schemes
+- Strudel pattern system for composable effects
 - Hot-reload capability
 
-The pattern engine extends the core primitives from lights.effects
-(Phaser, BeatClock, RGB) with higher-level abstractions.
+The pattern engine uses the Strudel system exclusively.
+All patterns are LightPattern instances.
 """
 
 from .common.groups import LightGroup, LightSetup, ZoneType
-from .classic.pattern_def import Pattern, PatternDef, GroupEffect, ColorPalette, HSV
 from .engine import PatternEngine, QuickAction
-from .classic.loader import PatternLoader
 
-# Re-export Phaser for convenience in pattern files
-from ..lights.effects import Phaser
+# Re-export core Strudel types
+from .strudel import (
+    # Core types
+    HSV,
+    LightPattern,
+    LightContext,
+    TimeSpan,
+    LightHap,
+    LightValue,
+    Envelope,
+    # Constructors
+    light,
+    stack,
+    cat,
+    ceiling,
+    perimeter,
+    # Scheduler
+    PatternScheduler,
+)
+
+# Re-export presets
+from .presets import get_strudel_presets
 
 __all__ = [
     # Groups
     "LightGroup",
     "LightSetup",
     "ZoneType",
-    # Patterns
-    "Pattern",
-    "PatternDef",  # Backwards compatibility
-    "GroupEffect",
-    "ColorPalette",
+    # Core Strudel types
     "HSV",
-    "Phaser",
+    "LightPattern",
+    "LightContext",
+    "TimeSpan",
+    "LightHap",
+    "LightValue",
+    "Envelope",
+    # Constructors
+    "light",
+    "stack",
+    "cat",
+    "ceiling",
+    "perimeter",
+    # Scheduler
+    "PatternScheduler",
     # Engine
     "PatternEngine",
     "QuickAction",
-    # Loader
-    "PatternLoader",
+    # Presets
+    "get_strudel_presets",
 ]

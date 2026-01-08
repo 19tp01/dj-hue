@@ -20,8 +20,7 @@ from typing import Optional
 
 import mido
 
-from dj_hue.patterns import PatternEngine, PatternLoader, LightSetup, LightGroup, QuickAction, ColorPalette
-from dj_hue.patterns.presets import get_strudel_presets
+from dj_hue.patterns import PatternEngine, LightSetup, LightGroup, QuickAction, get_strudel_presets
 
 
 # Render thread runs at 50 Hz to match Zigbee transmission rate
@@ -346,20 +345,14 @@ DIM = "\033[2m"
 
 
 def get_pattern_display_name(pattern_engine: PatternEngine, name: str) -> str:
-    """Get display name for a pattern (handles both classic and Strudel)."""
-    # Check if it's a Strudel pattern
-    if name in pattern_engine._strudel_patterns:
-        return name
-    # Otherwise try to get the Pattern object's display name
-    pattern = pattern_engine.get_pattern(name)
-    return pattern.name if pattern else name
+    """Get display name for a pattern."""
+    # All patterns are now Strudel LightPatterns, just return the name
+    return name
 
 
 def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: int, message: str = ""):
     """Draw the static interface."""
-    current_name = pattern_engine._pattern_names[pattern_engine._current_pattern_index]
-    current_display = get_pattern_display_name(pattern_engine, current_name)
-    is_strudel = current_name in pattern_engine._strudel_patterns
+    current_name = pattern_engine.get_current_pattern_name()
 
     # Build the interface
     lines = []
@@ -367,8 +360,7 @@ def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: in
     lines.append("─" * 50)
 
     # Current pattern (highlighted)
-    pattern_type = "(Strudel)" if is_strudel else ""
-    lines.append(f"{BOLD}Pattern:{RESET} {current_display} {DIM}{pattern_type}{RESET}")
+    lines.append(f"{BOLD}Pattern:{RESET} {current_name}")
     lines.append("")
 
     # Pattern list (first 9)
@@ -415,12 +407,10 @@ def print_pattern_selector(pattern_engine: PatternEngine) -> None:
 
     for i, name in enumerate(patterns):
         display_name = get_pattern_display_name(pattern_engine, name)
-        is_strudel = name in pattern_engine._strudel_patterns
         marker = "▶" if i == current_idx else " "
-        tag = f"{DIM}(S){RESET}" if is_strudel else ""
-        line = f"  {marker} {i + 1:2d}. {display_name} {tag}"
+        line = f"  {marker} {i + 1:2d}. {display_name}"
         if i == current_idx:
-            line = f"{BOLD}  {marker} {i + 1:2d}. {display_name}{RESET} {tag}"
+            line = f"{BOLD}  {marker} {i + 1:2d}. {display_name}{RESET}"
         lines.append(line)
 
     lines.append("")
@@ -532,28 +522,11 @@ def main():
 
     pattern_engine = PatternEngine(light_setup=light_setup)
 
-    # Setup pattern loader for hot-reload
-    patterns_dir = Path("patterns")
-    loader: Optional[PatternLoader] = None
-    if patterns_dir.exists():
-        loader = PatternLoader(
-            patterns_dir=patterns_dir,
-            on_reload=lambda name, p: pattern_engine.register_pattern(name, p),
-        )
-        loader.load_all()
-        loader.start_watching()
-        print(f"[PATTERNS] Watching: {patterns_dir}")
-
     # Register Strudel patterns
     strudel_presets = get_strudel_presets()
     for name, (pattern, description) in strudel_presets.items():
-        pattern_engine.register_strudel_pattern(name, pattern, description)
-    print(f"[PATTERNS] Loaded {len(strudel_presets)} Strudel patterns")
-
-    # Load spatial patterns (if zones are configured)
-    if light_setup.zone_config:
-        spatial_count = pattern_engine.load_spatial_presets()
-        print(f"[PATTERNS] Loaded {spatial_count} spatial patterns")
+        pattern_engine.register(name, pattern, description)
+    print(f"[PATTERNS] Loaded {len(strudel_presets)} patterns")
 
     # Shared state between MIDI and render threads
     engine_state = EngineState()
@@ -787,8 +760,6 @@ def main():
         print(SHOW_CURSOR, end="", flush=True)
         engine_state.running = False
         keyboard.stop()
-        if loader:
-            loader.stop_watching()
         render_thread.join(timeout=1.0)
         # Close MIDI output port
         try:

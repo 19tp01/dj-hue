@@ -169,33 +169,50 @@ def sequence(*light_ids: int) -> LightPattern:
     return light(list(light_ids))
 
 
-def zone(zone_name: str) -> LightPattern:
+def ceiling(notation: str = "all") -> LightPattern:
     """
-    Create a pattern targeting a specific zone.
+    Create a pattern targeting the ceiling zone.
 
-    Zones are spatial regions (ceiling, perimeter) that contain groups.
-    When the zone exists, this targets all lights in that zone.
-    When the zone doesn't exist, it falls back to "all".
+    This is shorthand for `light(notation).zone("ceiling")`.
+    If the ceiling zone doesn't exist, returns no events (black).
 
     Args:
-        zone_name: Name of the zone ("ceiling", "perimeter")
+        notation: Mini notation for which lights (default "all")
 
     Examples:
-        zone("ceiling").color("blue")           # All ceiling lights blue
-        zone("perimeter").seq().color("red")    # Chase around perimeter
+        ceiling()                     # All ceiling lights
+        ceiling().color("blue")       # Blue ceiling
+        ceiling().seq().fast(2)       # Fast chase on ceiling
+        ceiling("odd")                # Odd lights within ceiling zone
 
-    Note: Zone names are also registered as groups, so this is equivalent
-    to light("ceiling") when the zone is configured. The zone() function
-    is provided for semantic clarity.
+        # Combine with other zones
+        stack(
+            ceiling().color("white").fast(4),
+            perimeter().color("blue").slow(2),
+        )
     """
-    return light(zone_name)
+    return light(notation).zone("ceiling")
 
 
-def ceiling() -> LightPattern:
-    """Shorthand for zone("ceiling") - target ceiling lights."""
-    return zone("ceiling")
+def perimeter(notation: str = "all") -> LightPattern:
+    """
+    Create a pattern targeting the perimeter zone.
 
+    This is shorthand for `light(notation).zone("perimeter")`.
+    If the perimeter zone doesn't exist, returns no events (black).
 
-def perimeter() -> LightPattern:
-    """Shorthand for zone("perimeter") - target perimeter lights."""
-    return zone("perimeter")
+    Args:
+        notation: Mini notation for which lights (default "all")
+
+    Examples:
+        perimeter()                   # All perimeter lights
+        perimeter().color("red")      # Red perimeter
+        perimeter().seq().shuffle()   # Random sequence around perimeter
+
+        # Combine with other zones
+        stack(
+            ceiling().strobe(),
+            perimeter().chase(),
+        )
+    """
+    return light(notation).zone("perimeter")

@@ -2,6 +2,7 @@
 Core data structures for the Strudel-inspired pattern system.
 
 This module contains the fundamental types used throughout the pattern system:
+- HSV: Color representation in hue/saturation/value space
 - TimeSpan: Represents a span of time in cycles
 - LightValue: The properties of a light event (which light, color, intensity, envelope)
 - LightHap: A "happening" - a light event with timing information
@@ -10,12 +11,37 @@ This module contains the fundamental types used throughout the pattern system:
 
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from .envelope import Envelope
     from ..modulator import Modulator
-    from ...classic.pattern_def import HSV
+
+
+class HSV(NamedTuple):
+    """
+    HSV color representation.
+
+    All values are in the range 0.0-1.0:
+    - hue: Color wheel position (0=red, 0.33=green, 0.67=blue)
+    - saturation: Color intensity (0=gray, 1=vivid)
+    - value: Brightness (0=black, 1=full)
+    """
+    hue: float
+    saturation: float = 1.0
+    value: float = 1.0
+
+    def with_hue(self, hue: float) -> 'HSV':
+        """Return a copy with updated hue (wraps at 1.0)."""
+        return HSV(hue % 1.0, self.saturation, self.value)
+
+    def with_saturation(self, sat: float) -> 'HSV':
+        """Return a copy with updated saturation."""
+        return HSV(self.hue, max(0.0, min(1.0, sat)), self.value)
+
+    def with_value(self, val: float) -> 'HSV':
+        """Return a copy with updated value (brightness)."""
+        return HSV(self.hue, self.saturation, max(0.0, min(1.0, val)))
 
 
 @dataclass(frozen=True)

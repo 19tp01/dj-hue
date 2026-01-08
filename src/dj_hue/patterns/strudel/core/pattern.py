@@ -11,11 +11,10 @@ import random
 from fractions import Fraction
 from typing import Callable
 
-from .types import TimeSpan, LightHap, LightValue, LightContext
+from .types import TimeSpan, LightHap, LightValue, LightContext, HSV
 from .envelope import Envelope
 from ..modulator import Modulator, WaveType
 from ..color import resolve_color
-from ...classic.pattern_def import HSV
 
 
 # Type alias for query functions
@@ -564,6 +563,90 @@ class LightPattern:
             return result
 
         return LightPattern(query_modulate)
+
+    # =========================================================================
+    # ZONE TARGETING
+    # =========================================================================
+
+    def zone(
+        self,
+        target_zone: str,
+        fallback: str | None = None,
+    ) -> LightPattern:
+        """
+        Restrict pattern to a specific zone.
+
+        Filters events to only include lights that belong to the target zone.
+        If the zone doesn't exist, optionally falls back to another zone,
+        or returns no events (black).
+
+        Args:
+            target_zone: Zone name ("ceiling", "perimeter", or custom)
+            fallback: Fallback zone if target unavailable (or "all" for all lights)
+
+        Examples:
+            # Strobe only on ceiling lights
+            strobe().zone("ceiling")
+
+            # Chase on perimeter, with fallback to all lights if no perimeter
+            chase().zone("perimeter", fallback="all")
+
+            # Combine zones with stack
+            stack(
+                strobe().fast(4).zone("ceiling"),
+                pulse().slow(2).zone("perimeter"),
+            )
+
+            # Zone transforms compose with other transforms
+            light("all").seq().zone("ceiling").fast(2).color("cyan")
+        """
+        def query_zone(span: TimeSpan, ctx: LightContext) -> list[LightHap]:
+            # Determine which lights are in the target zone
+            if ctx.has_zone(target_zone):
+                zone_lights = set(ctx.resolve_zone(target_zone))
+            elif fallback:
+                # Try fallback zone
+                if fallback == "all":
+                    zone_lights = set(range(ctx.num_lights))
+                elif ctx.has_zone(fallback):
+                    zone_lights = set(ctx.resolve_zone(fallback))
+                else:
+                    # Fallback zone also doesn't exist
+                    return []
+            else:
+                # No fallback, zone unavailable
+                return []
+
+            if not zone_lights:
+                return []
+
+            # Query underlying pattern
+            haps = self._query(span, ctx)
+
+            # Filter/expand to zone lights only
+            result = []
+            for hap in haps:
+                if hap.value.light_id is not None:
+                    # Individual light - check if in zone
+                    if hap.value.light_id in zone_lights:
+                        result.append(hap)
+                elif hap.value.group:
+                    # Group reference - expand and intersect with zone
+                    group_lights = set(ctx.resolve_group(hap.value.group))
+                    intersected = group_lights & zone_lights
+                    for light_id in intersected:
+                        result.append(hap.with_value(LightValue(
+                            light_id=light_id,
+                            group=None,
+                            color=hap.value.color,
+                            intensity=hap.value.intensity,
+                            envelope=hap.value.envelope,
+                            modulator=hap.value.modulator,
+                        )))
+
+            return result
+
+        return LightPattern(query_zone)
 
     # =========================================================================
     # COMBINATION
