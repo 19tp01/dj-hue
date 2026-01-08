@@ -167,3 +167,35 @@ def all_lights() -> LightPattern:
 def sequence(*light_ids: int) -> LightPattern:
     """Shorthand for light([...]) - sequence through specified lights."""
     return light(list(light_ids))
+
+
+def zone(zone_name: str) -> LightPattern:
+    """
+    Create a pattern targeting a specific zone.
+
+    Zones are spatial regions (ceiling, perimeter) that contain groups.
+    When the zone exists, this targets all lights in that zone.
+    When the zone doesn't exist, it falls back to "all".
+
+    Args:
+        zone_name: Name of the zone ("ceiling", "perimeter")
+
+    Examples:
+        zone("ceiling").color("blue")           # All ceiling lights blue
+        zone("perimeter").seq().color("red")    # Chase around perimeter
+
+    Note: Zone names are also registered as groups, so this is equivalent
+    to light("ceiling") when the zone is configured. The zone() function
+    is provided for semantic clarity.
+    """
+    return light(zone_name)
+
+
+def ceiling() -> LightPattern:
+    """Shorthand for zone("ceiling") - target ceiling lights."""
+    return zone("ceiling")
+
+
+def perimeter() -> LightPattern:
+    """Shorthand for zone("perimeter") - target perimeter lights."""
+    return zone("perimeter")

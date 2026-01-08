@@ -31,7 +31,7 @@ Example:
 from .core import TimeSpan, LightHap, LightValue, LightContext
 from .pattern import LightPattern
 from .envelope import Envelope
-from .constructors import light, stack, cat, all_lights, sequence
+from .constructors import light, stack, cat, all_lights, sequence, zone, ceiling, perimeter
 from .scheduler import PatternScheduler, StrudelPatternWrapper
 from .colors import (
     color_from_name,
@@ -42,6 +42,14 @@ from .colors import (
     NAMED_COLORS,
 )
 from .presets import get_strudel_presets
+from .layered import LayeredPattern, ZoneLayer
+from .presets_v2 import get_spatial_presets
+from .combiner import (
+    combine_zone_layers,
+    create_spatial_delay_pattern,
+    create_echo_pattern,
+    create_alternating_zones_pattern,
+)
 
 __all__ = [
     # Core types
@@ -58,6 +66,9 @@ __all__ = [
     "cat",
     "all_lights",
     "sequence",
+    "zone",
+    "ceiling",
+    "perimeter",
 
     # Scheduler
     "PatternScheduler",
@@ -73,4 +84,13 @@ __all__ = [
 
     # Presets
     "get_strudel_presets",
+    "get_spatial_presets",
+
+    # Layered patterns
+    "LayeredPattern",
+    "ZoneLayer",
+    "combine_zone_layers",
+    "create_spatial_delay_pattern",
+    "create_echo_pattern",
+    "create_alternating_zones_pattern",
 ]

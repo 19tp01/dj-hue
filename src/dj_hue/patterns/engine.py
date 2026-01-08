@@ -6,6 +6,7 @@ The PatternEngine combines:
 - Pattern definitions (how to animate)
 - Color palettes (which colors to use)
 - Beat clock (timing)
+- Zone configuration (spatial awareness)
 
 And renders RGB colors for each light every frame.
 """
@@ -17,9 +18,11 @@ from typing import Callable, TYPE_CHECKING
 from ..lights.effects import BeatClock, Phaser, RGB
 from .groups import LightSetup
 from .pattern_def import Pattern, GroupEffect, ColorPalette, HSV
+from .registry import PatternRegistry
 
 if TYPE_CHECKING:
     from .strudel import LightPattern, StrudelPatternWrapper, LightContext
+    from .strudel.layered import LayeredPattern
 
 
 def get_builtin_patterns() -> dict[str, Pattern]:
@@ -162,6 +165,12 @@ class PatternEngine:
         self._strudel_patterns: dict[str, "StrudelPatternWrapper"] = {}
         self._light_context: "LightContext | None" = None
 
+        # Layered spatial pattern support
+        self._layered_registry = PatternRegistry(
+            light_setup.zone_config if light_setup else None
+        )
+        self._layered_patterns: dict[str, "LayeredPattern"] = {}
+
         # Set initial pattern
         if self._pattern_names:
             self._current_pattern = self._builtin_patterns[self._pattern_names[0]]
@@ -260,6 +269,92 @@ class PatternEngine:
 
         return len(new_presets)
 
+    def register_layered_pattern(self, pattern: "LayeredPattern") -> None:
+        """
+        Register a layered spatial pattern.
+
+        Args:
+            pattern: LayeredPattern instance to register
+        """
+        self._layered_registry.register(pattern)
+        self._layered_patterns[pattern.name] = pattern
+        if pattern.name not in self._pattern_names:
+            self._pattern_names.append(pattern.name)
+
+    def load_spatial_presets(self) -> int:
+        """
+        Load all spatial pattern presets.
+
+        Returns:
+            Number of patterns loaded
+        """
+        from .strudel.presets_v2 import get_spatial_presets
+
+        presets = get_spatial_presets()
+        for name, pattern in presets.items():
+            self.register_layered_pattern(pattern)
+
+        return len(presets)
+
+    def reload_spatial_patterns(self) -> int:
+        """
+        Hot-reload spatial patterns from disk.
+
+        Returns:
+            Number of patterns reloaded
+        """
+        import importlib
+        from .strudel import presets_v2
+
+        # Reload the presets module
+        importlib.reload(presets_v2)
+
+        # Re-import and reload
+        from .strudel.presets_v2 import get_spatial_presets
+
+        current_name = self._pattern_names[self._current_pattern_index] if self._pattern_names else None
+
+        new_presets = get_spatial_presets()
+        for name, pattern in new_presets.items():
+            self._layered_registry.register(pattern)
+            self._layered_patterns[name] = pattern
+            if name not in self._pattern_names:
+                self._pattern_names.append(name)
+
+        # Restore selection if possible
+        if current_name and current_name in self._pattern_names:
+            self._current_pattern_index = self._pattern_names.index(current_name)
+
+        return len(new_presets)
+
+    def get_available_zones(self) -> list[str]:
+        """Get list of available zone names."""
+        return self.light_setup.available_zones
+
+    def has_dual_zones(self) -> bool:
+        """Check if both ceiling and perimeter zones are available."""
+        return self.light_setup.has_dual_zones
+
+    def get_layered_pattern_info(self, name: str) -> dict | None:
+        """
+        Get information about a layered pattern.
+
+        Returns None if pattern not found.
+        """
+        info = self._layered_registry.get_pattern_info(name)
+        if info:
+            return {
+                "name": info.name,
+                "description": info.description,
+                "available": info.available,
+                "enhanced": info.enhanced,
+                "degraded": info.degraded,
+                "missing_zones": info.missing_zones,
+                "tags": info.tags,
+                "energy": info.energy,
+            }
+        return None
+
     def _get_light_context(self) -> "LightContext":
         """Get or create the LightContext from current light setup."""
         from .strudel import LightContext
@@ -270,9 +365,20 @@ class PatternEngine:
                 name: list(group.light_indices)
                 for name, group in self.light_setup.groups.items()
             }
+
+            # Build zones dict from zone configuration
+            zones = {}
+            available_zones = []
+            if self.light_setup.zone_config:
+                for zone_name, zone_def in self.light_setup.zone_config.zones.items():
+                    zones[zone_name] = zone_def.light_indices
+                    available_zones.append(zone_name)
+
             self._light_context = LightContext(
                 num_lights=self.num_lights,
                 groups=groups,
+                zones=zones,
+                available_zones=available_zones,
             )
         return self._light_context
 
@@ -282,7 +388,14 @@ class PatternEngine:
 
         Returns True if pattern was found and set.
         """
-        # Check for Strudel pattern first
+        # Check for layered spatial pattern first
+        if name in self._layered_patterns:
+            self._current_pattern = None  # Clear classic pattern
+            if name in self._pattern_names:
+                self._current_pattern_index = self._pattern_names.index(name)
+            return True
+
+        # Check for Strudel pattern
         if name in self._strudel_patterns:
             self._current_pattern = None  # Clear classic pattern
             if name in self._pattern_names:
@@ -402,8 +515,13 @@ class PatternEngine:
         if self._active_quick_action:
             return self._compute_quick_action_colors()
 
-        # Check for Strudel pattern first
         current_name = self._pattern_names[self._current_pattern_index] if self._pattern_names else None
+
+        # Check for layered spatial pattern first
+        if current_name and current_name in self._layered_patterns:
+            return self._compute_layered_pattern_colors(current_name)
+
+        # Check for Strudel pattern
         if current_name and current_name in self._strudel_patterns:
             strudel_wrapper = self._strudel_patterns[current_name]
             context = self._get_light_context()
@@ -521,6 +639,41 @@ class PatternEngine:
         # Default: black
         return {i: RGB.black() for i in range(self.num_lights)}
 
+    def _compute_layered_pattern_colors(self, name: str) -> dict[int, RGB]:
+        """
+        Compute colors for a layered spatial pattern.
+
+        Gets the effective pattern (with zone fallback applied) and
+        renders it using the Strudel rendering system.
+        """
+        from .strudel import StrudelPatternWrapper
+
+        layered_pattern = self._layered_patterns.get(name)
+        if not layered_pattern:
+            return {i: RGB.black() for i in range(self.num_lights)}
+
+        # Get available zones
+        available_zones = self.light_setup.available_zones
+
+        # Get effective pattern (with fallback applied)
+        effective_pattern = layered_pattern.get_effective_pattern(available_zones)
+        if not effective_pattern:
+            return {i: RGB.black() for i in range(self.num_lights)}
+
+        # Create a temporary wrapper to render
+        wrapper = StrudelPatternWrapper(
+            name=name,
+            pattern=effective_pattern,
+            description=layered_pattern.description,
+            default_color=HSV(0.0, 1.0, 1.0),
+        )
+
+        context = self._get_light_context()
+        return wrapper.compute_colors(
+            beat_position=self.beat_clock.beat_position,
+            context=context,
+        )
+
     def get_bpm(self) -> float:
         """Get current BPM."""
         return self.beat_clock.bpm
@@ -534,10 +687,13 @@ class PatternEngine:
         self.beat_clock.reset()
 
     def get_current_pattern_name(self) -> str:
-        """Get the name of the current pattern (handles both classic and Strudel)."""
+        """Get the name of the current pattern (handles classic, Strudel, and layered)."""
         if not self._pattern_names:
             return "None"
         current_name = self._pattern_names[self._current_pattern_index]
+        # For layered patterns, use the registered name
+        if current_name in self._layered_patterns:
+            return current_name
         # For Strudel patterns, use the registered name
         if current_name in self._strudel_patterns:
             return current_name
@@ -548,14 +704,35 @@ class PatternEngine:
 
     def get_status(self) -> dict:
         """Get current engine status for display."""
+        current_name = self.get_current_pattern_name()
+
+        # Get pattern type and zone info
+        pattern_type = "classic"
+        is_degraded = False
+        missing_zones: list[str] = []
+
+        if current_name in self._layered_patterns:
+            pattern_type = "layered"
+            info = self.get_layered_pattern_info(current_name)
+            if info:
+                is_degraded = info.get("degraded", False)
+                missing_zones = info.get("missing_zones", [])
+        elif current_name in self._strudel_patterns:
+            pattern_type = "strudel"
+
         return {
             "bpm": self.beat_clock.bpm,
             "beat_position": self.beat_clock.beat_position,
             "bar_position": self.beat_clock.get_bar_position(),
-            "pattern": self.get_current_pattern_name(),
+            "pattern": current_name,
+            "pattern_type": pattern_type,
             "pattern_index": self._current_pattern_index,
             "palette": (self._active_palette.name if self._active_palette
                        else (self._current_pattern.default_palette.name if self._current_pattern else None)),
             "blackout": self._blackout,
             "quick_action": self._active_quick_action.name if self._active_quick_action else None,
+            "available_zones": self.light_setup.available_zones,
+            "has_dual_zones": self.has_dual_zones(),
+            "is_degraded": is_degraded,
+            "missing_zones": missing_zones,
         }
