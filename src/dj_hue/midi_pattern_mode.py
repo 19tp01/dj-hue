@@ -568,8 +568,16 @@ def main():
         print(HIDE_CURSOR, end="", flush=True)
 
         # Open MIDI output port to send signals to Ableton
-        midi_out = mido.open_output(port_name + " Out", virtual=True)
-        print(f"[MIDI] Output port: {port_name} Out")
+        # Try IAC Driver first (more reliable), fall back to virtual port
+        midi_out = None
+        for p in mido.get_output_names():
+            if 'IAC' in p:
+                midi_out = mido.open_output(p)
+                print(f"[MIDI] Output port: {p}")
+                break
+        if midi_out is None:
+            midi_out = mido.open_output(port_name + " Out", virtual=True)
+            print(f"[MIDI] Output port: {port_name} Out (virtual)")
 
         with mido.open_input(port_name, virtual=True) as port:
             tick_count = 0
@@ -607,10 +615,11 @@ def main():
                         ui_message = ""
                         draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
-                    # Spacebar: Send continue to Ableton and reset to beat 1
+                    # Spacebar: Send MIDI note (for Ableton MIDI mapping) and reset beat counter
                     elif key == " ":
-                        # Send MIDI continue to Ableton (resets playhead to bar start)
-                        midi_out.send(mido.Message("continue"))
+                        # Send note C4 (note 60) on channel 0 - MIDI map this to Ableton's play/restart
+                        midi_out.send(mido.Message("note_on", note=60, velocity=127, channel=0))
+                        midi_out.send(mido.Message("note_off", note=60, velocity=0, channel=0))
                         # Reset our beat tracking to beat 1
                         tick_count = 0
                         beat_count = 1
