@@ -116,11 +116,20 @@ class PatternScheduler:
                     # Apply envelope if present
                     envelope = hap.value.envelope
                     if envelope:
-                        intensity = envelope.get_intensity(time_in_event) * hap.value.intensity
+                        envelope_intensity = envelope.get_intensity(time_in_event)
                         color = envelope.get_color(time_in_event, base_color)
                     else:
-                        intensity = hap.value.intensity
+                        envelope_intensity = 1.0
                         color = base_color
+
+                    # Apply modulator if present (uses absolute cycle position)
+                    modulator = hap.value.modulator
+                    if modulator:
+                        modulator_intensity = modulator.get_intensity(current_time)
+                    else:
+                        modulator_intensity = 1.0
+
+                    intensity = hap.value.intensity * envelope_intensity * modulator_intensity
 
                     colors[light_id] = RGB.from_hsv(color.hue, color.saturation, intensity)
 
@@ -141,17 +150,29 @@ class PatternScheduler:
                 continue
 
             active_span = active.hap.whole_or_part()
-            event_end = float(active_span.end)
             time_since_event_start = current_time - float(active_span.start)
 
-            # Stay active until the event ends (sustain at sustain level)
-            if current_time < event_end and time_since_event_start >= 0:
+            # Calculate when the envelope actually ends (not just the event slot)
+            # The envelope can extend beyond the event if decay > event duration
+            envelope_end_time = float(active_span.start) + envelope.attack + envelope.decay
+
+            # Stay active until the envelope is done (attack + decay complete)
+            if current_time < envelope_end_time and time_since_event_start >= 0:
                 base_color = active.hap.value.color or self.default_color
-                intensity = envelope.get_intensity(time_since_event_start) * active.hap.value.intensity
+                envelope_intensity = envelope.get_intensity(time_since_event_start)
                 color = envelope.get_color(time_since_event_start, base_color)
+
+                # Apply modulator if present (uses absolute cycle position)
+                modulator = active.hap.value.modulator
+                if modulator:
+                    modulator_intensity = modulator.get_intensity(current_time)
+                else:
+                    modulator_intensity = 1.0
+
+                intensity = active.hap.value.intensity * envelope_intensity * modulator_intensity
                 colors[light_id] = RGB.from_hsv(color.hue, color.saturation, intensity)
             else:
-                # Event ended, mark for removal
+                # Envelope finished, mark for removal
                 expired_events.append(light_id)
 
         # Clean up expired events

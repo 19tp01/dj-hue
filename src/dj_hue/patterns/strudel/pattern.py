@@ -13,6 +13,7 @@ from typing import Callable
 
 from .core import TimeSpan, LightHap, LightValue, LightContext
 from .envelope import Envelope
+from .modulator import Modulator, WaveType
 from .colors import resolve_color
 from ..pattern_def import HSV
 
@@ -157,12 +158,31 @@ class LightPattern:
                         if slots is not None:
                             # Scale slots based on group size ratio
                             group_slots = max(n, slots * n // ctx.num_lights)
-                            light_duration = event_duration / group_slots
+                            num_slots = group_slots
                         else:
-                            light_duration = event_duration / n
+                            # Use quarter notes (4 slots per bar) minimum
+                            # Lights wrap around modulo-style for polyrhythmic phasing
+                            num_slots = max(4, n)
+                            # Round up to power of 2 if we have more lights than 4
+                            if n > 4:
+                                num_slots = 4
+                                while num_slots < n:
+                                    num_slots *= 2
 
-                        for i, light_id in enumerate(lights):
-                            light_start = event_span.start + light_duration * i
+                        light_duration = event_duration / num_slots
+
+                        # For continuous polyrhythmic phasing, calculate the absolute
+                        # slot position based on time, not relative to event start.
+                        # This makes the light sequence continue across bars.
+                        # With 3 lights and 4 slots/bar:
+                        #   Bar 1: lights 0,1,2,0  Bar 2: lights 1,2,0,1  Bar 3: lights 2,0,1,2
+                        cycle_start = int(event_span.start)  # Which cycle/bar we're in
+                        base_slot = (cycle_start * num_slots) % n  # Accumulated offset
+
+                        # Generate events for each slot, wrapping light indices
+                        for slot in range(num_slots):
+                            light_id = lights[(base_slot + slot) % n]  # Wrap with phase offset
+                            light_start = event_span.start + light_duration * slot
                             light_end = light_start + light_duration
                             light_whole = TimeSpan(light_start, light_end)
 
@@ -175,6 +195,7 @@ class LightPattern:
                                     color=hap.value.color,
                                     intensity=hap.value.intensity,
                                     envelope=hap.value.envelope,
+                                    modulator=hap.value.modulator,
                                 )
                                 result.append(LightHap(
                                     whole=light_whole,
@@ -261,6 +282,135 @@ class LightPattern:
             return result
 
         return LightPattern(query_rev)
+
+    def autonomous(
+        self,
+        min_on: int = 1,
+        max_on: int = 4,
+        min_off: int = 1,
+        max_off: int = 2,
+        colors: list[str] | None = None,
+        seed: int | None = None,
+    ) -> LightPattern:
+        """
+        Make each light behave autonomously with random on/off timing.
+
+        Each light independently turns on and off at beat-quantized intervals.
+        The timing is pseudo-random but deterministic (same seed = same pattern).
+        Lights turn on/off instantly (no fading).
+
+        Args:
+            min_on: Minimum beats to stay on (default 1)
+            max_on: Maximum beats to stay on (default 4)
+            min_off: Minimum beats to stay off (default 1)
+            max_off: Maximum beats to stay off (default 2)
+            colors: Optional list of color names to randomly choose from per event
+            seed: Random seed for reproducibility (default: uses light_id)
+
+        Example:
+            # Each light randomly on 1-4 beats, off 1-2 beats
+            light("all").autonomous(min_on=1, max_on=4, min_off=1, max_off=2)
+
+            # With random colors from a palette
+            light("all").autonomous(min_on=2, max_on=6, colors=["yellow", "orange", "amber"])
+        """
+        # Pre-resolve colors if provided
+        resolved_colors = None
+        if colors:
+            resolved_colors = [resolve_color(c) for c in colors]
+
+        def query_autonomous(span: TimeSpan, ctx: LightContext) -> list[LightHap]:
+            haps = self._query(span, ctx)
+            result = []
+
+            # Group haps by light_id to process each light independently
+            # First, resolve any group references to individual lights
+            resolved_haps: dict[int, LightValue] = {}
+            for hap in haps:
+                if hap.value.light_id is not None:
+                    resolved_haps[hap.value.light_id] = hap.value
+                elif hap.value.group:
+                    for light_id in ctx.resolve_group(hap.value.group):
+                        # Create a value for this specific light
+                        resolved_haps[light_id] = LightValue(
+                            light_id=light_id,
+                            group=None,
+                            color=hap.value.color,
+                            intensity=hap.value.intensity,
+                            envelope=hap.value.envelope,
+                            modulator=hap.value.modulator,
+                        )
+
+            # For each light, generate its autonomous on/off pattern
+            # We need to look back far enough to know current state
+            lookback_beats = (max_on + max_off) * 4  # Conservative lookback
+            cycle_beats = int(ctx.cycle_beats)
+
+            for light_id, base_value in resolved_haps.items():
+                # Each light gets its own RNG seeded by light_id
+                light_seed = (seed if seed is not None else 0) + light_id * 1000
+                rng = random.Random(light_seed)
+
+                # Generate pattern from well before the query span
+                # Start from a deterministic point (beat 0 of some early cycle)
+                start_beat = max(0, int(float(span.start) * cycle_beats) - lookback_beats)
+                end_beat = int(float(span.end) * cycle_beats) + cycle_beats
+
+                # Reset RNG to start_beat state by advancing from 0
+                rng = random.Random(light_seed)
+                current_beat = 0
+
+                # Fast-forward RNG state to start_beat
+                while current_beat < start_beat:
+                    is_on = rng.random() < 0.5  # Initial state
+                    if is_on:
+                        duration = rng.randint(min_on, max_on)
+                        if resolved_colors:
+                            rng.choice(resolved_colors)  # Consume RNG state
+                    else:
+                        duration = rng.randint(min_off, max_off)
+                    current_beat += duration
+
+                # Now generate events in the query range
+                # Re-seed and regenerate to get proper state
+                rng = random.Random(light_seed)
+                current_beat = 0
+                is_on = rng.random() < 0.5  # Initial state at beat 0
+
+                while current_beat < end_beat:
+                    if is_on:
+                        duration = rng.randint(min_on, max_on)
+
+                        # Pick a random color if palette provided
+                        if resolved_colors:
+                            event_color = rng.choice(resolved_colors)
+                            event_value = base_value.with_color(event_color)
+                        else:
+                            event_value = base_value
+
+                        # This is an ON period - create an event
+                        event_start_cycle = Fraction(current_beat, cycle_beats)
+                        event_end_cycle = Fraction(current_beat + duration, cycle_beats)
+                        event_span = TimeSpan(event_start_cycle, event_end_cycle)
+
+                        # Check if this event overlaps with query span
+                        intersection = event_span.intersection(span)
+                        if intersection:
+                            result.append(LightHap(
+                                whole=event_span,
+                                part=intersection,
+                                value=event_value,
+                            ))
+                    else:
+                        duration = rng.randint(min_off, max_off)
+                        # OFF period - no event generated
+
+                    current_beat += duration
+                    is_on = not is_on  # Toggle state
+
+            return result
+
+        return LightPattern(query_autonomous)
 
     # =========================================================================
     # VALUE TRANSFORMATIONS
@@ -357,6 +507,63 @@ class LightPattern:
             return result
 
         return LightPattern(query_envelope)
+
+    def modulate(
+        self,
+        wave: str = "sine",
+        frequency: float = 1.0,
+        min_intensity: float = 0.0,
+        max_intensity: float = 1.0,
+        phase: float = 0.0,
+    ) -> LightPattern:
+        """
+        Apply oscillating intensity modulation to events.
+
+        The modulation is based on absolute bar position, not event-relative
+        time. This means all events in a bar share the same modulation phase,
+        creating coherent visual effects.
+
+        Args:
+            wave: Waveform type ("sine", "triangle", "saw", "square")
+            frequency: Oscillations per bar (1.0 = one cycle per bar)
+            min_intensity: Minimum intensity (0.0-1.0)
+            max_intensity: Maximum intensity (0.0-1.0)
+            phase: Phase offset in cycles (0.0-1.0)
+
+        Examples:
+            # Gentle breathing between 80% and 100% over each bar
+            .modulate("sine", frequency=1.0, min_intensity=0.8, max_intensity=1.0)
+
+            # Fast pulsing 4x per bar
+            .modulate("square", frequency=4.0, min_intensity=0.5, max_intensity=1.0)
+
+            # Slow 2-bar breathe
+            .modulate("sine", frequency=0.5, min_intensity=0.6, max_intensity=1.0)
+
+        Returns:
+            New LightPattern with modulation applied
+        """
+        wave_type = WaveType(wave.lower())
+
+        mod = Modulator(
+            wave=wave_type,
+            frequency=frequency,
+            min_intensity=min_intensity,
+            max_intensity=max_intensity,
+            phase=phase,
+        )
+
+        def query_modulate(span: TimeSpan, ctx: LightContext) -> list[LightHap]:
+            haps = self._query(span, ctx)
+            result = []
+
+            for h in haps:
+                new_value = h.value.with_modulator(mod)
+                result.append(h.with_value(new_value))
+
+            return result
+
+        return LightPattern(query_modulate)
 
     # =========================================================================
     # COMBINATION

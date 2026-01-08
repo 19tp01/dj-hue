@@ -31,6 +31,7 @@ Example:
 from .core import TimeSpan, LightHap, LightValue, LightContext
 from .pattern import LightPattern
 from .envelope import Envelope
+from .modulator import Modulator, WaveType
 from .constructors import light, stack, cat, all_lights, sequence, zone, ceiling, perimeter
 from .scheduler import PatternScheduler, StrudelPatternWrapper
 from .colors import (
@@ -59,6 +60,8 @@ __all__ = [
     "LightContext",
     "LightPattern",
     "Envelope",
+    "Modulator",
+    "WaveType",
 
     # Constructors
     "light",

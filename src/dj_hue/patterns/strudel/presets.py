@@ -78,6 +78,28 @@ def get_strudel_presets() -> dict[str, tuple[LightPattern, str]]:
             blue_fade_strobe(),
             "2 beats bright blue fade, 2 beats blue strobe",
         ),
+        # === RAINBOW PATTERNS ===
+        "s_rainbow_chase": (
+            rainbow_chase(),
+            "Rainbow colors chase on half notes",
+        ),
+        "s_rainbow_breathe": (
+            rainbow_breathe(),
+            "Rainbow colors with sine wave breathing 80-100%",
+        ),
+        # === AUTONOMOUS PATTERNS ===
+        "s_autonomous": (
+            autonomous_lights(),
+            "Each light independently on/off at random beats",
+        ),
+        "s_fireflies": (
+            fireflies(),
+            "Firefly-like random blinking, warm colors",
+        ),
+        "s_rainbow_auto": (
+            rainbow_autonomous(),
+            "Autonomous rainbow - random colors, 2-4 beats on/off",
+        ),
     }
 
 
@@ -113,12 +135,12 @@ def beat_flash() -> LightPattern:
 
 
 def downbeat_flash() -> LightPattern:
-    """Single flash on beat 1, rest of bar is ambient glow."""
-    return stack(
-        # Ambient base layer - continuous dim glow
-        light("all").envelope(attack=0.5, fade=0.5, sustain=0.3).color("orange").intensity(0.3),
-        # Flash overlay on beat 1
-        light("all ~*15").envelope(attack=0.02, fade=0.5).color(flash="white", fade="orange"),
+    """Single flash on beat 1, fades for rest of bar."""
+    # fade=1.0 means fade over 1 full cycle (bar), sustain=0 means fade to black
+    return (
+        light("all ~*3")
+        .envelope(attack=0.02, fade=1.0, sustain=0.0)
+        .color(flash="white", fade="orange")
     )
 
 
@@ -178,7 +200,9 @@ def bounce_chase() -> LightPattern:
 
 def strobe_white() -> LightPattern:
     """Classic strobe - 16th notes on/off."""
-    return light("all ~").fast(16).color("white")  # 32 events per bar = 16th note strobe
+    return (
+        light("all ~").fast(16).color("white")
+    )  # 32 events per bar = 16th note strobe
 
 
 def strobe_build() -> LightPattern:
@@ -217,7 +241,9 @@ def color_wash() -> LightPattern:
         light("all").seq().envelope(attack=0.3, fade=0.5, sustain=0.4).color("orange"),
         light("all").seq().envelope(attack=0.3, fade=0.5, sustain=0.4).color("yellow"),
         light("all").seq().envelope(attack=0.3, fade=0.5, sustain=0.4).color("orange"),
-    ).slow(2)  # Each color gets 2 bars = 8 bar total cycle
+    ).slow(
+        2
+    )  # Each color gets 2 bars = 8 bar total cycle
 
 
 # =============================================================================
@@ -293,3 +319,124 @@ def blue_fade_strobe() -> LightPattern:
     ).fast(
         2
     )  # Compress 2 cycles into 1 bar (each section = 2 beats)
+
+
+def rainbow_chase() -> LightPattern:
+    """
+    Rainbow colors chase through lights on half notes.
+
+    Each half note (2 per bar), lights sequence through with a new color.
+    Colors cycle: red -> orange -> yellow -> green -> cyan -> blue -> purple -> magenta
+    Full rainbow cycle takes 4 bars.
+    """
+    # 8 colors, each gets half a bar, so full cycle = 4 bars
+    return cat(
+        light("all").seq().envelope(attack=0.02, fade=0.4, sustain=0.0).color("red"),
+        light("all").seq().envelope(attack=0.02, fade=0.4, sustain=0.0).color("orange"),
+        light("all").seq().envelope(attack=0.02, fade=0.4, sustain=0.0).color("yellow"),
+        light("all").seq().envelope(attack=0.02, fade=0.4, sustain=0.0).color("green"),
+        light("all").seq().envelope(attack=0.02, fade=0.4, sustain=0.0).color("cyan"),
+        light("all").seq().envelope(attack=0.02, fade=0.4, sustain=0.0).color("blue"),
+        light("all").seq().envelope(attack=0.02, fade=0.4, sustain=0.0).color("purple"),
+        light("all")
+        .seq()
+        .envelope(attack=0.02, fade=0.4, sustain=0.0)
+        .color("magenta"),
+    ).fast(
+        2
+    )  # 2x speed = half note per color (2 colors per bar)
+
+
+def rainbow_breathe() -> LightPattern:
+    """
+    Rainbow colors fading smoothly with brightness sine wave.
+
+    Colors cycle through the full spectrum (8 colors per bar).
+    Brightness oscillates from 80% to 100% every 4 bars using a triangle wave
+    (always changing, no lingering at min/max).
+    """
+    return (
+        cat(
+            light("all").color("red"),
+            light("all").color("orange"),
+            light("all").color("yellow"),
+            light("all").color("green"),
+            light("all").color("cyan"),
+            light("all").color("blue"),
+            light("all").color("purple"),
+            light("all").color("magenta"),
+        )
+        .fast(8)  # 8 colors per bar
+        .modulate(
+            wave="triangle",  # Triangle wave = always changing, no lingering
+            frequency=0.25,  # One full oscillation per 4 bars
+            min_intensity=0.8,
+            max_intensity=1.0,
+            phase=0.25,  # Start at max (sine peaks at phase 0.25)
+        )
+    )
+
+
+# =============================================================================
+# AUTONOMOUS PATTERNS
+# =============================================================================
+
+
+def autonomous_lights() -> LightPattern:
+    """
+    Each light behaves independently with random on/off timing.
+
+    Lights turn on for 1-4 beats, then off for 1-2 beats.
+    No fading - instant on/off at beat boundaries.
+    """
+    return (
+        light("all")
+        .autonomous(
+            min_on=1,
+            max_on=4,
+            min_off=1,
+            max_off=2,
+        )
+        .color("white")
+    )
+
+
+def fireflies() -> LightPattern:
+    """
+    Firefly-like effect with warm colors.
+
+    Each light blinks on for 2-6 beats, then stays off for 2-4 beats.
+    Warm color scheme: yellow, gold, orange, amber - randomized per event.
+    """
+    return light("all").autonomous(
+        min_on=2,
+        max_on=6,
+        min_off=2,
+        max_off=4,
+        colors=["yellow", "warm_white", "orange", "amber"],
+    )
+
+
+def rainbow_autonomous() -> LightPattern:
+    """
+    Autonomous rainbow - each light randomly picks rainbow colors.
+
+    Each light blinks on for 1-2 beats, off for 1-2 beats.
+    Colors: red, orange, yellow, green, cyan, blue, purple, magenta.
+    """
+    return light("all").autonomous(
+        min_on=1,
+        max_on=4,
+        min_off=0,
+        max_off=0,
+        colors=[
+            "red",
+            "orange",
+            "yellow",
+            "green",
+            "cyan",
+            "blue",
+            "purple",
+            "magenta",
+        ],
+    )
