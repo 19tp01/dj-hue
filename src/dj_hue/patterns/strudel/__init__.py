@@ -28,13 +28,22 @@ Example:
     ).slow(2)
 """
 
-from .core import TimeSpan, LightHap, LightValue, LightContext
-from .pattern import LightPattern
-from .envelope import Envelope
+# Core types
+from .core.types import TimeSpan, LightHap, LightValue, LightContext
+from .core.pattern import LightPattern
+from .core.envelope import Envelope
+
+# Modulator
 from .modulator import Modulator, WaveType
-from .constructors import light, stack, cat, all_lights, sequence, zone, ceiling, perimeter
+
+# DSL constructors
+from .dsl.constructors import light, stack, cat, all_lights, sequence, zone, ceiling, perimeter
+
+# Scheduler
 from .scheduler import PatternScheduler, StrudelPatternWrapper
-from .colors import (
+
+# Colors
+from .color import (
     color_from_name,
     resolve_color,
     hue_rotate,
@@ -42,10 +51,10 @@ from .colors import (
     saturate,
     NAMED_COLORS,
 )
-from .presets import get_strudel_presets
-from .layered import LayeredPattern, ZoneLayer
-from .presets_v2 import get_spatial_presets
-from .combiner import (
+
+# Spatial/Layered patterns
+from .spatial.layered import LayeredPattern, ZoneLayer
+from .spatial.combiner import (
     combine_zone_layers,
     create_spatial_delay_pattern,
     create_echo_pattern,
@@ -84,10 +93,6 @@ __all__ = [
     "dim",
     "saturate",
     "NAMED_COLORS",
-
-    # Presets
-    "get_strudel_presets",
-    "get_spatial_presets",
 
     # Layered patterns
     "LayeredPattern",

@@ -11,10 +11,10 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
-from .core import TimeSpan, LightHap, LightContext
-from .pattern import LightPattern
-from .envelope import Envelope
-from ..pattern_def import HSV
+from .core.types import TimeSpan, LightHap, LightContext
+from .core.pattern import LightPattern
+from .core.envelope import Envelope
+from ..classic.pattern_def import HSV
 
 if TYPE_CHECKING:
     from ...lights.effects import RGB

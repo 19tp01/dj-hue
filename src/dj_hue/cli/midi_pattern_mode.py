@@ -21,7 +21,7 @@ from typing import Optional
 import mido
 
 from dj_hue.patterns import PatternEngine, PatternLoader, LightSetup, LightGroup, QuickAction, ColorPalette
-from dj_hue.patterns.strudel import get_strudel_presets
+from dj_hue.patterns.presets import get_strudel_presets
 
 
 # Render thread runs at 50 Hz to match Zigbee transmission rate
@@ -284,7 +284,7 @@ def render_loop(
 
 def load_config():
     """Load Hue config from config.yaml."""
-    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.yaml")
+    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "config.yaml")
 
     if not os.path.exists(config_path):
         raise FileNotFoundError(
@@ -520,7 +520,7 @@ def main():
     print(f"[ZONES] Detected ceiling={ceiling_indices}, perimeter={perimeter_indices}")
 
     if ceiling_indices and perimeter_indices:
-        from .patterns.zones import ZoneConfig
+        from dj_hue.patterns.common.zones import ZoneConfig
         zone_config = ZoneConfig.create_dual_zone(
             ceiling_indices=list(ceiling_indices),
             perimeter_indices=list(perimeter_indices)

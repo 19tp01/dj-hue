@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .strudel.layered import LayeredPattern
-    from .strudel.pattern import LightPattern
+    from ..strudel.spatial.layered import LayeredPattern
+    from ..strudel.core.pattern import LightPattern
     from .zones import ZoneConfig
 
 

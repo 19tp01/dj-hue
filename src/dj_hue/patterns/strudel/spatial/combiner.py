@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .pattern import LightPattern
-from .constructors import light, stack
+from ..core.pattern import LightPattern
+from ..dsl.constructors import light, stack
 
 if TYPE_CHECKING:
     from .layered import ZoneLayer
-    from .core import LightContext
+    from ..core.types import LightContext
 
 
 def combine_zone_layers(
@@ -151,7 +151,7 @@ def create_alternating_zones_pattern(
     Returns:
         Alternating pattern
     """
-    from .constructors import cat
+    from ..dsl.constructors import cat
 
     # Create alternating on/off patterns
     # This uses cat to sequence A-on + B-off, then A-off + B-on

@@ -12,8 +12,8 @@ from __future__ import annotations
 from fractions import Fraction
 from typing import Sequence
 
-from .core import TimeSpan, LightHap, LightValue, LightContext
-from .pattern import LightPattern
+from ..core.types import TimeSpan, LightHap, LightValue, LightContext
+from ..core.pattern import LightPattern
 from .parser import parse_to_query_data
 
 

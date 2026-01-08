@@ -147,7 +147,7 @@ COLORS = [
 
 def load_config():
     """Load Hue config from config.yaml."""
-    config_path = os.path.join(os.path.dirname(__file__), '..', '..', 'config.yaml')
+    config_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'config.yaml')
 
     if not os.path.exists(config_path):
         raise FileNotFoundError(

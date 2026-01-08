@@ -11,10 +11,10 @@ The pattern engine extends the core primitives from lights.effects
 (Phaser, BeatClock, RGB) with higher-level abstractions.
 """
 
-from .groups import LightGroup, LightSetup, ZoneType
-from .pattern_def import Pattern, PatternDef, GroupEffect, ColorPalette, HSV
+from .common.groups import LightGroup, LightSetup, ZoneType
+from .classic.pattern_def import Pattern, PatternDef, GroupEffect, ColorPalette, HSV
 from .engine import PatternEngine, QuickAction
-from .loader import PatternLoader
+from .classic.loader import PatternLoader
 
 # Re-export Phaser for convenience in pattern files
 from ..lights.effects import Phaser

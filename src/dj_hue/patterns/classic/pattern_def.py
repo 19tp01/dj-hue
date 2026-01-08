@@ -9,7 +9,7 @@ Colors are referenced by palette index, allowing runtime color overrides.
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
-from ..lights.effects import Phaser, LightEffect
+from ...lights.effects import Phaser, LightEffect
 
 
 class HSV(NamedTuple):

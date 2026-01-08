@@ -11,11 +11,11 @@ import random
 from fractions import Fraction
 from typing import Callable
 
-from .core import TimeSpan, LightHap, LightValue, LightContext
+from .types import TimeSpan, LightHap, LightValue, LightContext
 from .envelope import Envelope
-from .modulator import Modulator, WaveType
-from .colors import resolve_color
-from ..pattern_def import HSV
+from ..modulator import Modulator, WaveType
+from ..color import resolve_color
+from ...classic.pattern_def import HSV
 
 
 # Type alias for query functions

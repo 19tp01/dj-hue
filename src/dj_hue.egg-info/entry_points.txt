@@ -1,3 +1,4 @@
 [console_scripts]
-dj-hue = dj_hue.midi_pattern_mode:main
-dj-hue-midi = dj_hue.midi_hue:main
+dj-hue = dj_hue.cli.midi_pattern_mode:main
+dj-hue-link = dj_hue.cli.link_hue:main
+dj-hue-midi = dj_hue.cli.midi_hue:main

@@ -4,8 +4,8 @@ Pre-built Strudel patterns for common DJ lighting effects.
 These patterns can be registered with PatternEngine using register_strudel_pattern().
 """
 
-from .constructors import light, stack, cat
-from .pattern import LightPattern
+from ..strudel.dsl.constructors import light, stack, cat
+from ..strudel.core.pattern import LightPattern
 
 
 def get_strudel_presets() -> dict[str, tuple[LightPattern, str]]:

@@ -10,12 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from .pattern import LightPattern
-from .constructors import light, stack
+from ..core.pattern import LightPattern
+from ..dsl.constructors import light, stack
 
 if TYPE_CHECKING:
-    from .core import LightContext
-    from ..metadata import PatternCapability, FallbackStrategy
+    from ..core.types import LightContext
+    from ...common.metadata import PatternCapability, FallbackStrategy
 
 
 @dataclass
@@ -105,7 +105,7 @@ class LayeredPattern:
         Returns:
             LightPattern to render, or None if unavailable
         """
-        from ..metadata import FallbackStrategy
+        from ...common.metadata import FallbackStrategy
 
         # Check if required zones are present
         missing_required = self.capability.missing_required(available_zones)

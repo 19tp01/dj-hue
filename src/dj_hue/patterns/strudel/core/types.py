@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .envelope import Envelope
-    from .modulator import Modulator
-    from ..pattern_def import HSV
+    from ..modulator import Modulator
+    from ...classic.pattern_def import HSV
 
 
 @dataclass(frozen=True)

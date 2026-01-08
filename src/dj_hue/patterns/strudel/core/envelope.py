@@ -10,7 +10,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..pattern_def import HSV
+    from ...classic.pattern_def import HSV
 
 
 @dataclass
@@ -177,7 +177,7 @@ def interpolate_hsv(c1: "HSV", c2: "HSV", t: float) -> "HSV":
     Returns:
         Interpolated HSV color
     """
-    from ..pattern_def import HSV
+    from ...classic.pattern_def import HSV
 
     t = max(0.0, min(1.0, t))
 

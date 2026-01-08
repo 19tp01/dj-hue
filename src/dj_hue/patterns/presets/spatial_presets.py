@@ -5,9 +5,9 @@ These patterns leverage the dual-zone system for spatial effects,
 with graceful degradation to single-zone fallbacks.
 """
 
-from .constructors import light, stack, cat, ceiling, perimeter
-from .layered import LayeredPattern
-from ..metadata import PatternCapability, EnergyLevel, FallbackStrategy
+from ..strudel.dsl.constructors import light, stack, cat, ceiling, perimeter
+from ..strudel.spatial.layered import LayeredPattern
+from ..common.metadata import PatternCapability, EnergyLevel, FallbackStrategy
 
 
 def get_spatial_presets() -> dict[str, LayeredPattern]:

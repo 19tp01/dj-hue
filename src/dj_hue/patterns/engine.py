@@ -16,13 +16,13 @@ from pathlib import Path
 from typing import Callable, TYPE_CHECKING
 
 from ..lights.effects import BeatClock, Phaser, RGB
-from .groups import LightSetup
-from .pattern_def import Pattern, GroupEffect, ColorPalette, HSV
-from .registry import PatternRegistry
+from .common.groups import LightSetup
+from .classic.pattern_def import Pattern, GroupEffect, ColorPalette, HSV
+from .common.registry import PatternRegistry
 
 if TYPE_CHECKING:
     from .strudel import LightPattern, StrudelPatternWrapper, LightContext
-    from .strudel.layered import LayeredPattern
+    from .strudel.spatial.layered import LayeredPattern
 
 
 def get_builtin_patterns() -> dict[str, Pattern]:
@@ -236,16 +236,16 @@ class PatternEngine:
             Number of patterns reloaded
         """
         import importlib
-        from . import strudel
-        from .strudel import presets
+        from . import presets
+        from .presets import strudel_presets
 
         # Reload the presets module
+        importlib.reload(strudel_presets)
+        # Reload presets package to pick up new reference
         importlib.reload(presets)
-        # Reload strudel package to pick up new presets reference
-        importlib.reload(strudel)
 
         # Re-import get_strudel_presets after reload
-        from .strudel import get_strudel_presets
+        from .presets import get_strudel_presets
 
         # Update existing patterns (keep current selection)
         current_name = self._pattern_names[self._current_pattern_index] if self._pattern_names else None
@@ -288,13 +288,13 @@ class PatternEngine:
         Returns:
             Number of patterns loaded
         """
-        from .strudel.presets_v2 import get_spatial_presets
+        from .presets import get_spatial_presets
 
-        presets = get_spatial_presets()
-        for name, pattern in presets.items():
+        spatial_presets = get_spatial_presets()
+        for name, pattern in spatial_presets.items():
             self.register_layered_pattern(pattern)
 
-        return len(presets)
+        return len(spatial_presets)
 
     def reload_spatial_patterns(self) -> int:
         """
@@ -304,13 +304,15 @@ class PatternEngine:
             Number of patterns reloaded
         """
         import importlib
-        from .strudel import presets_v2
+        from . import presets
+        from .presets import spatial_presets
 
         # Reload the presets module
-        importlib.reload(presets_v2)
+        importlib.reload(spatial_presets)
+        importlib.reload(presets)
 
         # Re-import and reload
-        from .strudel.presets_v2 import get_spatial_presets
+        from .presets import get_spatial_presets
 
         current_name = self._pattern_names[self._current_pattern_index] if self._pattern_names else None
 
