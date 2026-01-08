@@ -33,8 +33,8 @@ from .strudel import (
     PatternScheduler,
 )
 
-# Re-export presets
-from .presets import get_strudel_presets
+# Re-export decorator for user patterns
+from .decorator import pattern
 
 __all__ = [
     # Groups
@@ -60,6 +60,6 @@ __all__ = [
     # Engine
     "PatternEngine",
     "QuickAction",
-    # Presets
-    "get_strudel_presets",
+    # Decorator
+    "pattern",
 ]

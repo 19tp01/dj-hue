@@ -18,6 +18,7 @@ from typing import Callable
 
 from ..lights.effects import BeatClock, RGB
 from .common.groups import LightSetup
+from .loader import load_patterns, reload_patterns
 from .strudel import (
     LightPattern,
     LightContext,
@@ -88,6 +89,9 @@ class PatternEngine:
             light_setup = LightSetup.create_default(6)
         self.light_setup = light_setup
 
+        # User patterns directory (for hot-reload)
+        self._patterns_dir = patterns_dir
+
         # Beat clock for timing
         self.beat_clock = BeatClock(bpm=120.0)
 
@@ -112,6 +116,9 @@ class PatternEngine:
 
         # Cached light context
         self._light_context: LightContext | None = None
+
+        # Load patterns from library and user directory
+        self._load_all_patterns()
 
     @property
     def num_lights(self) -> int:
@@ -168,43 +175,45 @@ class PatternEngine:
         """
         self.register(name, pattern, description)
 
+    def _load_all_patterns(self) -> None:
+        """Load patterns from library and user directory."""
+        patterns = load_patterns(user_dir=self._patterns_dir)
+        for name, (pattern, description) in patterns.items():
+            self.register(name, pattern, description)
+
     def reload_strudel_patterns(self) -> int:
         """
-        Hot-reload Strudel patterns from disk.
+        Hot-reload all patterns from disk.
 
         Returns:
             Number of patterns reloaded
         """
-        import importlib
-        from . import presets
-        from .presets import strudel_presets
-
-        # Reload the presets module
-        importlib.reload(strudel_presets)
-        # Reload presets package to pick up new reference
-        importlib.reload(presets)
-
-        # Re-import get_strudel_presets after reload
-        from .presets import get_strudel_presets
-
-        # Update existing patterns (keep current selection)
+        # Remember current selection
         current_name = (
             self._pattern_names[self._current_pattern_index]
             if self._pattern_names
             else None
         )
 
-        new_presets = get_strudel_presets()
-        for name, (pattern, description) in new_presets.items():
+        # Clear existing patterns
+        self._patterns.clear()
+        self._pattern_descriptions.clear()
+        self._pattern_names.clear()
+        self._current_pattern_index = 0
+
+        # Reload all patterns (clears decorator registry and re-imports files)
+        patterns = reload_patterns(user_dir=self._patterns_dir)
+        for name, (pattern, description) in patterns.items():
             self.register(name, pattern, description)
 
         # Restore selection if possible
         if current_name and current_name in self._pattern_names:
             self._current_pattern_index = self._pattern_names.index(current_name)
-            # Rebuild scheduler for current pattern
-            self._rebuild_scheduler()
 
-        return len(new_presets)
+        # Rebuild scheduler for current pattern
+        self._rebuild_scheduler()
+
+        return len(self._patterns)
 
     def get_available_zones(self) -> list[str]:
         """Get list of available zone names."""

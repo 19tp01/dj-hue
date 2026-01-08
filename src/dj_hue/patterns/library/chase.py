@@ -1,0 +1,50 @@
+"""Chase patterns - lights sequence around."""
+
+from ..decorator import pattern
+from ..strudel import light, stack, cat, LightPattern
+
+
+@pattern("s_chase_smooth", "Lights chase smoothly around", tags=["chase"])
+def smooth_chase() -> LightPattern:
+    """
+    Lights sequence around once per bar with smooth transitions.
+
+    Automatically runs per-group (strip sequences separately from lamps).
+    """
+    return (
+        light("all")
+        .seq()
+        .envelope(attack=0.1, fade=0.3, sustain=0.2)
+        .color("cyan")
+        .early(0.02)
+    )
+
+
+@pattern("s_chase_fast", "Quick chase, 4x per bar", tags=["chase"])
+def fast_chase() -> LightPattern:
+    """Fast chase - 4 cycles per bar."""
+    return (
+        light("all")
+        .seq()
+        .fast(4)
+        .envelope(attack=0.02, fade=0.1)
+        .color("magenta")
+    )
+
+
+@pattern("s_chase_bounce", "Chase bounces back and forth", tags=["chase"])
+def bounce_chase() -> LightPattern:
+    """
+    Chase that bounces back and forth.
+
+    Forward chase then reverse chase, twice per bar.
+    """
+    forward = stack(
+        light("0 1 2 3").envelope(attack=0.05, fade=0.2).color("blue"),
+        light("4 5").envelope(attack=0.05, fade=0.2).color("blue"),
+    )
+    backward = stack(
+        light("3 2 1 0").envelope(attack=0.05, fade=0.2).color("blue"),
+        light("5 4").envelope(attack=0.05, fade=0.2).color("blue"),
+    )
+    return cat(forward, backward).fast(2)

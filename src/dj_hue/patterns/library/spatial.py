@@ -1,41 +1,7 @@
-"""
-Spatial patterns for ceiling + perimeter setups.
+"""Spatial patterns - ceiling + perimeter zone effects."""
 
-These patterns leverage the dual-zone system for spatial effects using
-the .zone() transform for composable zone targeting.
-
-If a zone is missing, the pattern gracefully returns no events for that zone
-(the .zone() transform returns [] when target zone doesn't exist).
-"""
-
-from ..strudel.dsl.constructors import light, stack, cat, ceiling, perimeter
-from ..strudel.core.pattern import LightPattern
-
-
-def get_spatial_presets() -> dict[str, tuple[LightPattern, str]]:
-    """
-    Get all spatial pattern presets.
-
-    Returns:
-        Dict mapping pattern name to (LightPattern, description) tuples.
-    """
-    return {
-        # Spatial patterns (enhanced by ceiling)
-        "sp_lightning": (lightning(), "Lightning strikes from ceiling, illuminates room"),
-        "sp_heartbeat": (heartbeat(), "Double-pulse heartbeat, ceiling leads"),
-        "sp_ripple": (ripple(), "Ripple from ceiling center to perimeter"),
-        "sp_fire": (fire(), "Flames at perimeter, ember glow on ceiling"),
-        "sp_comet": (comet(), "Comet enters from ceiling, trails around room"),
-        "sp_sunrise": (sunrise(), "Slow sunrise: ceiling leads color transition"),
-        "sp_aurora": (aurora(), "Aurora on ceiling, subtle reflection below"),
-        # Structural patterns (require both zones)
-        "sp_bullseye": (bullseye(), "Alternating rings: ceiling and perimeter"),
-        "sp_vortex": (vortex(), "Spinning perimeter, calm ceiling eye"),
-        "sp_portal": (portal(), "Portal on ceiling, energy emanates to perimeter"),
-        # Complementary patterns (different behavior per zone)
-        "sp_police": (police(), "Police lights: ceiling red, perimeter blue"),
-        "sp_rainbow_breathe": (rainbow_breathe(), "Rainbow breathing with complementary colors per zone"),
-    }
+from ..decorator import pattern
+from ..strudel import light, stack, cat, LightPattern
 
 
 # =============================================================================
@@ -43,14 +9,13 @@ def get_spatial_presets() -> dict[str, tuple[LightPattern, str]]:
 # =============================================================================
 
 
+@pattern("sp_lightning", "Lightning strikes from ceiling, illuminates room", tags=["spatial"])
 def lightning() -> LightPattern:
     """
     Lightning strikes from ceiling, illuminates room.
 
-    Ceiling flashes first (the "sky"), perimeter follows 80ms later
-    as the room is illuminated. Triggers on beat 1.
+    Ceiling flashes first (the "sky"), perimeter follows 80ms later.
     """
-    # Flash on beat 1, rest of bar silent (~*3 = 3 rests for beats 2,3,4)
     ceiling_flash = (
         light("all ~*3")
         .color("white")
@@ -62,21 +27,20 @@ def lightning() -> LightPattern:
         light("all ~*3")
         .color("white")
         .envelope(attack=0.01, fade=0.4, sustain=0.0)
-        .late(0.02)  # ~80ms at 120bpm
+        .late(0.02)
         .zone("perimeter")
     )
 
     return stack(ceiling_flash, perimeter_flash)
 
 
+@pattern("sp_heartbeat", "Double-pulse heartbeat, ceiling leads", tags=["spatial"])
 def heartbeat() -> LightPattern:
     """
     Double-pulse heartbeat with ceiling as the heart.
 
-    Ceiling beats at full intensity, perimeter echoes softer and delayed.
     Lub-dub pattern: beat on 1, beat on 2, rest on 3-4.
     """
-    # Double-pulse pattern: lub (beat 1), dub (beat 2), rest (beats 3-4)
     ceiling_beat = (
         light("all all ~*2")
         .envelope(attack=0.02, fade=0.2, sustain=0.0)
@@ -89,19 +53,19 @@ def heartbeat() -> LightPattern:
         .envelope(attack=0.02, fade=0.25, sustain=0.0)
         .color("red")
         .intensity(0.7)
-        .late(0.0125)  # ~50ms echo
+        .late(0.0125)
         .zone("perimeter")
     )
 
     return stack(ceiling_beat, perimeter_beat)
 
 
+@pattern("sp_ripple", "Ripple from ceiling center to perimeter", tags=["spatial"])
 def ripple() -> LightPattern:
     """
     Ripple emanates from ceiling center to perimeter.
 
-    Like a pebble dropped in water - ceiling is the epicenter,
-    perimeter receives the expanding wave.
+    Like a pebble dropped in water.
     """
     ceiling_ripple = (
         light("all")
@@ -115,21 +79,20 @@ def ripple() -> LightPattern:
         .seq()
         .color("cyan")
         .envelope(attack=0.05, fade=0.4)
-        .late(0.05)  # Wave travel time
+        .late(0.05)
         .zone("perimeter")
     )
 
     return stack(ceiling_ripple, perimeter_ripple)
 
 
+@pattern("sp_fire", "Flames at perimeter, ember glow on ceiling", tags=["spatial"])
 def fire() -> LightPattern:
     """
     Fire effect with ceiling as ember reflection.
 
-    Perimeter has active flames (fast flickering), ceiling gets the
-    softer reflected glow as light would bounce off a ceiling.
+    Perimeter has active flames, ceiling gets softer reflected glow.
     """
-    # Simulate flickering with fast random pops
     flames = (
         light("all all all all")
         .seq()
@@ -151,11 +114,10 @@ def fire() -> LightPattern:
     return stack(flames, embers)
 
 
+@pattern("sp_comet", "Comet enters from ceiling, trails around room", tags=["spatial"])
 def comet() -> LightPattern:
     """
     Comet enters from ceiling, trails around perimeter.
-
-    Ceiling flash marks entry, then chase runs around perimeter.
     """
     entry_flash = (
         light("all")
@@ -169,50 +131,48 @@ def comet() -> LightPattern:
         .seq()
         .envelope(attack=0.02, fade=0.3, sustain=0.1)
         .color(flash="white", fade="cyan")
-        .late(0.0625)  # Trail starts after entry
+        .late(0.0625)
         .zone("perimeter", fallback="all")
     )
 
     return stack(entry_flash, trail)
 
 
+@pattern("sp_sunrise", "Slow sunrise: ceiling leads color transition", tags=["spatial", "ambient"])
 def sunrise() -> LightPattern:
     """
     Slow sunrise: ceiling (sky) leads color transition.
 
-    Very slow color temperature shift from warm to cool,
-    with ceiling leading and perimeter following.
+    8 bar warm to cool transition.
     """
-    # Warm to cool transition over 8 bars
     sky_transition = cat(
         light("all").color("red").envelope(attack=0.5, fade=0.5, sustain=0.8),
         light("all").color("orange").envelope(attack=0.5, fade=0.5, sustain=0.8),
         light("all").color("yellow").envelope(attack=0.5, fade=0.5, sustain=0.8),
         light("all").color("white").envelope(attack=0.5, fade=0.5, sustain=0.8),
-    ).slow(2).zone("ceiling", fallback="all")  # 8 bars total
+    ).slow(2).zone("ceiling", fallback="all")
 
     room_transition = cat(
         light("all").color("red").envelope(attack=0.5, fade=0.5, sustain=0.6),
         light("all").color("orange").envelope(attack=0.5, fade=0.5, sustain=0.6),
         light("all").color("yellow").envelope(attack=0.5, fade=0.5, sustain=0.6),
         light("all").color("white").envelope(attack=0.5, fade=0.5, sustain=0.6),
-    ).slow(2).late(0.5).zone("perimeter")  # Room follows sky
+    ).slow(2).late(0.5).zone("perimeter")
 
     return stack(sky_transition, room_transition)
 
 
+@pattern("sp_aurora", "Aurora on ceiling, subtle reflection below", tags=["spatial", "ambient"])
 def aurora() -> LightPattern:
     """
     Aurora borealis: full effect on ceiling, subtle reflection on perimeter.
-
-    Ceiling shows flowing aurora colors, perimeter has muted ambient glow.
     """
     aurora_colors = cat(
         light("all").color("green").envelope(attack=0.4, fade=0.6, sustain=0.5),
         light("all").color("cyan").envelope(attack=0.4, fade=0.6, sustain=0.5),
         light("all").color("blue").envelope(attack=0.4, fade=0.6, sustain=0.5),
         light("all").color("purple").envelope(attack=0.4, fade=0.6, sustain=0.5),
-    ).slow(2).zone("ceiling", fallback="all")  # 8 bar cycle
+    ).slow(2).zone("ceiling", fallback="all")
 
     ambient_reflection = (
         light("all")
@@ -230,35 +190,31 @@ def aurora() -> LightPattern:
 # =============================================================================
 
 
+@pattern("sp_bullseye", "Alternating rings: ceiling and perimeter", tags=["spatial"])
 def bullseye() -> LightPattern:
     """
     Alternating rings: ceiling and perimeter alternate.
 
-    Creates a pulsing target/bullseye effect using the natural ring structure.
     Falls back to even/odd alternation if zones missing.
     """
     ceiling_ring = light("all ~").color("red").zone("ceiling")
     perimeter_ring = light("~ all").color("blue").zone("perimeter")
 
-    # Fallback for single zone - use even/odd
     even_ring = light("even ~").color("red")
     odd_ring = light("~ odd").color("blue")
 
-    # Stack both approaches - zone ones will return [] if zones missing
     return stack(
         ceiling_ring,
         perimeter_ring,
-        # Fallback patterns only active when no zones
-        even_ring.zone("all"),  # Only if no ceiling/perimeter
+        even_ring.zone("all"),
         odd_ring.zone("all"),
     )
 
 
+@pattern("sp_vortex", "Spinning perimeter, calm ceiling eye", tags=["spatial"])
 def vortex() -> LightPattern:
     """
     Vortex: perimeter spins, ceiling is calm eye of storm.
-
-    Fast chase around perimeter while ceiling pulses slowly as the calm center.
     """
     spinning_edge = (
         light("all")
@@ -280,12 +236,10 @@ def vortex() -> LightPattern:
     return stack(spinning_edge, calm_eye)
 
 
+@pattern("sp_portal", "Portal on ceiling, energy emanates to perimeter", tags=["spatial"])
 def portal() -> LightPattern:
     """
     Portal: ceiling glows as portal, perimeter reacts with energy.
-
-    Ceiling pulses intensely as a "portal opening", perimeter
-    sparkles with emanating energy.
     """
     portal_glow = (
         light("all")
@@ -311,37 +265,34 @@ def portal() -> LightPattern:
 # =============================================================================
 
 
+@pattern("sp_police", "Police lights: ceiling red, perimeter blue", tags=["spatial"])
 def police() -> LightPattern:
     """
     Police lights: ceiling is red, perimeter is blue, alternating.
 
-    Uses the zone separation for the classic red/blue split.
     Falls back to left/right split if single zone.
     """
     ceiling_red = light("all ~").fast(4).color("red").zone("ceiling")
     perimeter_blue = light("~ all").fast(4).color("blue").zone("perimeter")
 
-    # Fallback for single zone
     left_red = light("left ~").fast(4).color("red")
     right_blue = light("~ right").fast(4).color("blue")
 
     return stack(
         ceiling_red,
         perimeter_blue,
-        # Fallback only active when zones missing
         left_red.zone("all"),
         right_blue.zone("all"),
     )
 
 
-def rainbow_breathe() -> LightPattern:
+@pattern("sp_rainbow_breathe", "Rainbow breathing with complementary colors per zone", tags=["spatial", "rainbow"])
+def spatial_rainbow_breathe() -> LightPattern:
     """
     Rainbow breathing with complementary colors per zone.
 
-    Both zones breathe together, but ceiling and perimeter
-    are offset by 180 degrees in hue for constant color contrast.
+    Ceiling and perimeter are offset by 180 degrees in hue.
     """
-    # These colors are roughly complementary
     ceiling_colors = cat(
         light("all").color("red").envelope(attack=0.4, fade=0.4, sustain=0.5),
         light("all").color("yellow").envelope(attack=0.4, fade=0.4, sustain=0.5),
