@@ -16,11 +16,6 @@ from .envelope import Envelope
 from .colors import resolve_color
 from ..pattern_def import HSV
 
-# Import automation types (for type hints)
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from .automation import Automation, AutomationBuilder
-
 
 # Type alias for query functions
 QueryFunc = Callable[[TimeSpan, LightContext], list[LightHap]]
@@ -321,68 +316,63 @@ class LightPattern:
 
     def brightness(
         self,
-        auto: "Automation | AutomationBuilder",
+        phaser: "Phaser | None" = None,
+        *,
+        waveform: str = "sine",
+        beats: float = 1.0,
+        min_val: float = 0.0,
+        max_val: float = 1.0,
+        offset: float = 0.0,
     ) -> LightPattern:
         """
-        Apply a brightness automation curve to this pattern.
+        Apply a beat-synced brightness curve using a Phaser.
 
-        The automation defines how brightness varies over beat positions,
-        similar to automation lanes in a DAW.
+        Can pass an existing Phaser or use keyword args to create one.
 
         Args:
-            auto: Automation object or builder defining the brightness curve
+            phaser: Optional existing Phaser instance
+            waveform: "sine", "triangle", "sawtooth", "sawtooth_rev", "square", "pulse", "smooth_pulse"
+            beats: Beats per full cycle (e.g., 1.0 = ramp over 1 beat)
+            min_val: Minimum brightness (0.0-1.0)
+            max_val: Maximum brightness (0.0-1.0)
+            offset: Phase offset (0.0-1.0) to shift timing
 
         Example:
-            from dj_hue.patterns.strudel.automation import ramp, keyframes, automation
+            # Linear ramp 0→1 over 1 beat, repeating
+            pattern.brightness(waveform="sawtooth", beats=1)
 
-            # Simple fade in over first beat
-            pattern.brightness(ramp(0, 1, 0.0, 1.0))
+            # Sine wave over 2 beats
+            pattern.brightness(waveform="sine", beats=2)
 
-            # Complex automation
-            pattern.brightness(
-                automation()
-                    .ramp(0, 1, 0.0, 1.0)      # Fade in
-                    .hold(1, 2)                 # Hold
-                    .ramp(2, 4, 1.0, 0.0)       # Fade out
-            )
+            # Pulse on each beat
+            pattern.brightness(waveform="smooth_pulse", beats=1)
 
-            # From keyframes
-            pattern.brightness(keyframes([
-                (0, 0.0),    # Beat 0: off
-                (1, 1.0),    # Beat 1: full
-                (4, 0.0),    # Beat 4: off
-            ]))
+            # From beat 1 to 2, linear 0→1: use sawtooth with offset
+            pattern.brightness(waveform="sawtooth", beats=1, offset=0.25)  # starts at beat 1
+
+            # Or pass existing Phaser
+            from dj_hue.lights.effects import Phaser
+            pattern.brightness(Phaser(waveform="triangle", beats_per_cycle=4))
         """
-        # Import here to avoid circular dependency
-        from .automation import AutomationBuilder
+        from ...lights.effects import Phaser as PhaserClass
 
-        # Build if it's a builder
-        if isinstance(auto, AutomationBuilder):
-            auto = auto.build()
+        if phaser is None:
+            phaser = PhaserClass(
+                waveform=waveform,
+                beats_per_cycle=beats,
+                phase_offset=offset,
+                min_value=min_val,
+                max_value=max_val,
+            )
 
         def query_brightness(span: TimeSpan, ctx: LightContext) -> list[LightHap]:
             haps = self._query(span, ctx)
             result = []
 
             for hap in haps:
-                # Get the event's time in beats
-                event_span = hap.whole_or_part()
-                event_start_beat = float(event_span.start) * ctx.cycle_beats
-
-                # Get automation value at event start
-                brightness = auto.get_value(event_start_beat)
-
-                if brightness is not None:
-                    # Apply brightness as intensity multiplier
-                    new_intensity = hap.value.intensity * brightness
-                    new_value = hap.value.with_intensity(new_intensity)
-
-                    # Also store automation reference for continuous rendering
-                    new_value = new_value.with_automation(auto)
-                    result.append(hap.with_value(new_value))
-                else:
-                    # No automation at this point, keep original
-                    result.append(hap)
+                # Store phaser reference for continuous rendering
+                new_value = hap.value.with_phaser(phaser)
+                result.append(hap.with_value(new_value))
 
             return result
 

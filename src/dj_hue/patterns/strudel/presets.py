@@ -78,6 +78,23 @@ def get_strudel_presets() -> dict[str, tuple[LightPattern, str]]:
             blue_fade_strobe(),
             "2 beats bright blue fade, 2 beats blue strobe",
         ),
+        # === BRIGHTNESS AUTOMATION PATTERNS ===
+        "s_breathe": (
+            breathe(),
+            "Smooth sine wave breathing, 2 beats per cycle",
+        ),
+        "s_ramp_up": (
+            ramp_up(),
+            "Linear brightness ramp, resets each beat",
+        ),
+        "s_pulse_wave": (
+            pulse_wave(),
+            "Sharp pulse decay on each beat",
+        ),
+        "s_triangle_chase": (
+            triangle_chase(),
+            "Chase with triangle wave brightness",
+        ),
     }
 
 
@@ -293,3 +310,63 @@ def blue_fade_strobe() -> LightPattern:
     ).fast(
         2
     )  # Compress 2 cycles into 1 bar (each section = 2 beats)
+
+
+# =============================================================================
+# BRIGHTNESS AUTOMATION PATTERNS
+# =============================================================================
+
+
+def breathe() -> LightPattern:
+    """
+    Smooth sine wave breathing effect.
+
+    Uses Phaser to modulate brightness with a sine wave.
+    2 beats per full cycle (0->1->0).
+    """
+    return (
+        light("all")
+        .brightness(waveform="sine", beats=2, min_val=0.1, max_val=1.0)
+        .color("cyan")
+    )
+
+
+def ramp_up() -> LightPattern:
+    """
+    Linear brightness ramp that resets each beat.
+
+    Sawtooth wave: 0->1 over 1 beat, instant reset.
+    Good for build-ups or tension.
+    """
+    return (
+        light("all")
+        .brightness(waveform="sawtooth", beats=1, min_val=0.0, max_val=1.0)
+        .color("red")
+    )
+
+
+def pulse_wave() -> LightPattern:
+    """
+    Sharp exponential decay pulse on each beat.
+
+    Smooth pulse waveform: instant peak, exponential decay.
+    """
+    return (
+        light("all")
+        .brightness(waveform="smooth_pulse", beats=1, min_val=0.0, max_val=1.0)
+        .color("white")
+    )
+
+
+def triangle_chase() -> LightPattern:
+    """
+    Chase pattern with triangle wave brightness.
+
+    Combines sequential light movement with smooth brightness oscillation.
+    """
+    return (
+        light("all")
+        .seq()
+        .brightness(waveform="triangle", beats=2, min_val=0.2, max_val=1.0)
+        .color("magenta")
+    )

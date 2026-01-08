@@ -116,12 +116,10 @@ class PatternScheduler:
                     # Start with base intensity
                     intensity = hap.value.intensity
 
-                    # Apply automation if present (uses absolute beat position)
-                    automation = hap.value.automation
-                    if automation:
-                        auto_value = automation.get_value(beat_position)
-                        if auto_value is not None:
-                            intensity *= auto_value
+                    # Apply phaser if present (uses absolute beat position)
+                    phaser = hap.value.phaser
+                    if phaser:
+                        intensity *= phaser.get_value(beat_position)
 
                     # Apply envelope if present (uses relative event time)
                     envelope = hap.value.envelope
@@ -145,9 +143,9 @@ class PatternScheduler:
                 continue
 
             envelope = active.hap.value.envelope
-            automation = active.hap.value.automation
+            phaser = active.hap.value.phaser
 
-            if not envelope and not automation:
+            if not envelope and not phaser:
                 expired_events.append(light_id)
                 continue
 
@@ -162,11 +160,9 @@ class PatternScheduler:
                 # Start with base intensity
                 intensity = active.hap.value.intensity
 
-                # Apply automation if present (uses absolute beat position)
-                if automation:
-                    auto_value = automation.get_value(beat_position)
-                    if auto_value is not None:
-                        intensity *= auto_value
+                # Apply phaser if present (uses absolute beat position)
+                if phaser:
+                    intensity *= phaser.get_value(beat_position)
 
                 # Apply envelope if present (uses relative event time)
                 if envelope:
