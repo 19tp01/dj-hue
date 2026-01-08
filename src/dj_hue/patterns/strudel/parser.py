@@ -137,21 +137,40 @@ def parse_sequence(
     Parse a sequence of tokens into events.
 
     Divides the time span evenly among top-level elements.
+    Elements with *n modifiers count as n slots for timing purposes.
     """
     # Split by spaces to get top-level elements
     elements = split_by_space(tokens)
     if not elements:
         return []
 
+    # Count total slots, accounting for *n modifiers
+    # e.g., "ceiling ceiling ~*2" = 1 + 1 + 2 = 4 slots
+    total_slots = 0
+    element_slots = []
+    for element in elements:
+        slots = 1
+        if len(element) > 1 and element[1].startswith('*'):
+            try:
+                slots = int(element[1][1:])
+            except ValueError:
+                try:
+                    slots = int(float(element[1][1:]))
+                except ValueError:
+                    slots = 1
+        element_slots.append(slots)
+        total_slots += slots
+
     duration = end - start
-    n = len(elements)
-    slot_duration = duration / n
+    slot_duration = duration / total_slots
 
     events = []
-    for i, element in enumerate(elements):
-        slot_start = start + slot_duration * i
-        slot_end = slot_start + slot_duration
+    current_slot = 0
+    for element, slots in zip(elements, element_slots):
+        slot_start = start + slot_duration * current_slot
+        slot_end = slot_start + slot_duration * slots
         events.extend(parse_element(element, slot_start, slot_end))
+        current_slot += slots
 
     return events
 

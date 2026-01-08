@@ -48,8 +48,9 @@ def lightning() -> LayeredPattern:
     Lightning strikes from ceiling, illuminates room.
 
     Ceiling flashes first (the "sky"), perimeter follows 80ms later
-    as the room is illuminated.
+    as the room is illuminated. Triggers on beat 1.
     """
+    # Flash on beat 1, rest of bar silent (~*3 = 3 rests for beats 2,3,4)
     return LayeredPattern.create(
         name="sp_lightning",
         description="Lightning strikes from ceiling, illuminates room",
@@ -57,11 +58,11 @@ def lightning() -> LayeredPattern:
             tags=["dramatic", "impact", "flash"],
             energy=EnergyLevel.HIGH,
         ),
-        ceiling=ceiling().color("white").envelope(attack=0.01, fade=0.1),
-        perimeter=perimeter().color("white").envelope(attack=0.01, fade=0.15),
+        ceiling=light("ceiling ~*3").color("white").envelope(attack=0.01, fade=0.25, sustain=0.0),
+        perimeter=light("perimeter ~*3").color("white").envelope(attack=0.01, fade=0.4, sustain=0.0),
         ceiling_delay=0.0,
         perimeter_delay=0.02,  # ~80ms at 120bpm
-        fallback=light("all").color("white").envelope(attack=0.01, fade=0.1),
+        fallback=light("all ~*3").color("white").envelope(attack=0.01, fade=0.25, sustain=0.0),
     )
 
 
@@ -70,10 +71,9 @@ def heartbeat() -> LayeredPattern:
     Double-pulse heartbeat with ceiling as the heart.
 
     Ceiling beats at full intensity, perimeter echoes softer and delayed.
+    Lub-dub pattern: beat on 1, beat on 2, rest on 3-4.
     """
-    # Double-pulse pattern (lub-dub)
-    pulse = light("all ~*2 all ~*12")  # Beat, pause, beat, long pause
-
+    # Double-pulse pattern: lub (beat 1), dub (beat 2), rest (beats 3-4)
     return LayeredPattern.create(
         name="sp_heartbeat",
         description="Double-pulse heartbeat, ceiling leads",
@@ -81,11 +81,11 @@ def heartbeat() -> LayeredPattern:
             tags=["dramatic", "tension", "pulse"],
             energy=EnergyLevel.MEDIUM,
         ),
-        ceiling=ceiling().envelope(attack=0.02, fade=0.15).color("red"),
-        perimeter=perimeter().envelope(attack=0.02, fade=0.2).color("red"),
+        ceiling=light("ceiling ceiling ~*2").envelope(attack=0.02, fade=0.2, sustain=0.0).color("red"),
+        perimeter=light("perimeter perimeter ~*2").envelope(attack=0.02, fade=0.25, sustain=0.0).color("red").intensity(0.7),
         ceiling_delay=0.0,
         perimeter_delay=0.0125,  # ~50ms echo
-        fallback=light("all").envelope(attack=0.02, fade=0.15).color("red"),
+        fallback=light("all all ~*2").envelope(attack=0.02, fade=0.2, sustain=0.0).color("red"),
     )
 
 
