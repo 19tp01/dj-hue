@@ -607,10 +607,10 @@ def main():
                         ui_message = ""
                         draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
-                    # Spacebar: Send continue to Ableton and reset to beat 1
+                    # Spacebar: Send start to Ableton and reset to beat 1
                     elif key == " ":
-                        # Send MIDI continue to Ableton (resets playhead to bar start)
-                        midi_out.send(mido.Message("continue"))
+                        # Send MIDI start to Ableton (restarts playback from beginning)
+                        midi_out.send(mido.Message("start"))
                         # Reset our beat tracking to beat 1
                         tick_count = 0
                         beat_count = 1
