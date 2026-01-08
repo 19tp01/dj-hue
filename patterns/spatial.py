@@ -1,7 +1,7 @@
 """Spatial patterns - ceiling + perimeter zone effects."""
 
-from ..decorator import pattern
-from ..strudel import light, stack, cat, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, stack, cat, LightPattern
 
 
 # =============================================================================
@@ -9,7 +9,7 @@ from ..strudel import light, stack, cat, LightPattern
 # =============================================================================
 
 
-@pattern("sp_lightning", "Lightning strikes from ceiling, illuminates room", tags=["spatial"])
+@pattern("Lightning", "Lightning strikes from ceiling, illuminates room", tags=["spatial"])
 def lightning() -> LightPattern:
     """
     Lightning strikes from ceiling, illuminates room.
@@ -34,7 +34,7 @@ def lightning() -> LightPattern:
     return stack(ceiling_flash, perimeter_flash)
 
 
-@pattern("sp_heartbeat", "Double-pulse heartbeat, ceiling leads", tags=["spatial"])
+@pattern("Heartbeat", "Double-pulse heartbeat, ceiling leads", tags=["spatial"])
 def heartbeat() -> LightPattern:
     """
     Double-pulse heartbeat with ceiling as the heart.
@@ -60,7 +60,7 @@ def heartbeat() -> LightPattern:
     return stack(ceiling_beat, perimeter_beat)
 
 
-@pattern("sp_ripple", "Ripple from ceiling center to perimeter", tags=["spatial"])
+@pattern("Ripple", "Ripple from ceiling center to perimeter", tags=["spatial"])
 def ripple() -> LightPattern:
     """
     Ripple emanates from ceiling center to perimeter.
@@ -86,7 +86,7 @@ def ripple() -> LightPattern:
     return stack(ceiling_ripple, perimeter_ripple)
 
 
-@pattern("sp_fire", "Flames at perimeter, ember glow on ceiling", tags=["spatial"])
+@pattern("Fire", "Flames at perimeter, ember glow on ceiling", tags=["spatial"])
 def fire() -> LightPattern:
     """
     Fire effect with ceiling as ember reflection.
@@ -114,7 +114,7 @@ def fire() -> LightPattern:
     return stack(flames, embers)
 
 
-@pattern("sp_comet", "Comet enters from ceiling, trails around room", tags=["spatial"])
+@pattern("Comet", "Comet enters from ceiling, trails around room", tags=["spatial"])
 def comet() -> LightPattern:
     """
     Comet enters from ceiling, trails around perimeter.
@@ -138,7 +138,7 @@ def comet() -> LightPattern:
     return stack(entry_flash, trail)
 
 
-@pattern("sp_sunrise", "Slow sunrise: ceiling leads color transition", tags=["spatial", "ambient"])
+@pattern("Sunrise", "Slow sunrise: ceiling leads color transition", tags=["spatial", "ambient"])
 def sunrise() -> LightPattern:
     """
     Slow sunrise: ceiling (sky) leads color transition.
@@ -162,7 +162,7 @@ def sunrise() -> LightPattern:
     return stack(sky_transition, room_transition)
 
 
-@pattern("sp_aurora", "Aurora on ceiling, subtle reflection below", tags=["spatial", "ambient"])
+@pattern("Aurora", "Aurora on ceiling, subtle reflection below", tags=["spatial", "ambient"])
 def aurora() -> LightPattern:
     """
     Aurora borealis: full effect on ceiling, subtle reflection on perimeter.
@@ -190,7 +190,7 @@ def aurora() -> LightPattern:
 # =============================================================================
 
 
-@pattern("sp_bullseye", "Alternating rings: ceiling and perimeter", tags=["spatial"])
+@pattern("Bullseye", "Alternating rings: ceiling and perimeter", tags=["spatial"])
 def bullseye() -> LightPattern:
     """
     Alternating rings: ceiling and perimeter alternate.
@@ -211,7 +211,7 @@ def bullseye() -> LightPattern:
     )
 
 
-@pattern("sp_vortex", "Spinning perimeter, calm ceiling eye", tags=["spatial"])
+@pattern("Vortex", "Spinning perimeter, calm ceiling eye", tags=["spatial"])
 def vortex() -> LightPattern:
     """
     Vortex: perimeter spins, ceiling is calm eye of storm.
@@ -236,7 +236,7 @@ def vortex() -> LightPattern:
     return stack(spinning_edge, calm_eye)
 
 
-@pattern("sp_portal", "Portal on ceiling, energy emanates to perimeter", tags=["spatial"])
+@pattern("Portal", "Portal on ceiling, energy emanates to perimeter", tags=["spatial"])
 def portal() -> LightPattern:
     """
     Portal: ceiling glows as portal, perimeter reacts with energy.
@@ -265,7 +265,7 @@ def portal() -> LightPattern:
 # =============================================================================
 
 
-@pattern("sp_police", "Police lights: ceiling red, perimeter blue", tags=["spatial"])
+@pattern("Police", "Police lights: ceiling red, perimeter blue", tags=["spatial"])
 def police() -> LightPattern:
     """
     Police lights: ceiling is red, perimeter is blue, alternating.
@@ -286,7 +286,7 @@ def police() -> LightPattern:
     )
 
 
-@pattern("sp_rainbow_breathe", "Rainbow breathing with complementary colors per zone", tags=["spatial", "rainbow"])
+@pattern("Spatial Rainbow Breathe", "Rainbow breathing with complementary colors per zone", tags=["spatial", "rainbow"])
 def spatial_rainbow_breathe() -> LightPattern:
     """
     Rainbow breathing with complementary colors per zone.

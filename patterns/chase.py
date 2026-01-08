@@ -1,10 +1,10 @@
 """Chase patterns - lights sequence around."""
 
-from ..decorator import pattern
-from ..strudel import light, stack, cat, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, stack, cat, LightPattern
 
 
-@pattern("s_chase_smooth", "Lights chase smoothly around", tags=["chase"])
+@pattern("Chase Smooth", "Lights chase smoothly around", tags=["chase"])
 def smooth_chase() -> LightPattern:
     """
     Lights sequence around once per bar with smooth transitions.
@@ -20,7 +20,7 @@ def smooth_chase() -> LightPattern:
     )
 
 
-@pattern("s_chase_fast", "Quick chase, 4x per bar", tags=["chase"])
+@pattern("Chase Fast", "Quick chase, 4x per bar", tags=["chase"])
 def fast_chase() -> LightPattern:
     """Fast chase - 4 cycles per bar."""
     return (
@@ -32,7 +32,7 @@ def fast_chase() -> LightPattern:
     )
 
 
-@pattern("s_chase_bounce", "Chase bounces back and forth", tags=["chase"])
+@pattern("Chase Bounce", "Chase bounces back and forth", tags=["chase"])
 def bounce_chase() -> LightPattern:
     """
     Chase that bounces back and forth.

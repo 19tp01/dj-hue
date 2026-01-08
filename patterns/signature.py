@@ -1,10 +1,10 @@
 """Signature patterns - complex multi-layer effects."""
 
-from ..decorator import pattern
-from ..strudel import light, stack, cat, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, stack, cat, LightPattern
 
 
-@pattern("s_green_cascade", "Neon green with sequential white flash at bar start", tags=["signature"])
+@pattern("Green Cascade", "Neon green with sequential white flash at bar start", tags=["signature"])
 def green_cascade() -> LightPattern:
     """
     Neon green with alternating even/odd pulse and sequential flash at bar start.
@@ -29,7 +29,7 @@ def green_cascade() -> LightPattern:
     )
 
 
-@pattern("s_blue_fade_strobe", "2 beats bright blue fade, 2 beats blue strobe", tags=["signature"])
+@pattern("Blue Fade Strobe", "2 beats bright blue fade, 2 beats blue strobe", tags=["signature"])
 def blue_fade_strobe() -> LightPattern:
     """
     2 beats bright blue fade to 50%, then 2 beats blue strobe.
@@ -43,7 +43,7 @@ def blue_fade_strobe() -> LightPattern:
     ).fast(2)
 
 
-@pattern("s_rainbow_chase", "Rainbow colors chase on half notes", tags=["signature", "rainbow"])
+@pattern("Rainbow Chase", "Rainbow colors chase on half notes", tags=["signature", "rainbow"])
 def rainbow_chase() -> LightPattern:
     """
     Rainbow colors chase through lights on half notes.
@@ -63,7 +63,7 @@ def rainbow_chase() -> LightPattern:
     ).fast(2)
 
 
-@pattern("s_rainbow_breathe", "Rainbow breathing with sine wave 80-100%", tags=["signature", "rainbow"])
+@pattern("Rainbow Breathe", "Rainbow breathing with sine wave 80-100%", tags=["signature", "rainbow"])
 def rainbow_breathe() -> LightPattern:
     """
     Rainbow colors fading smoothly with brightness sine wave.

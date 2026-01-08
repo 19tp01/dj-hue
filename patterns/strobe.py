@@ -1,16 +1,16 @@
 """Strobe patterns - rapid on/off flashing."""
 
-from ..decorator import pattern
-from ..strudel import light, cat, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, cat, LightPattern
 
 
-@pattern("s_strobe", "16th note white strobe", tags=["strobe"])
+@pattern("Strobe", "16th note white strobe", tags=["strobe"])
 def strobe_white() -> LightPattern:
     """Classic strobe - 16th notes on/off."""
     return light("all ~").fast(16).color("white")
 
 
-@pattern("s_strobe_build", "Strobe speeds up over 8 bars", tags=["strobe"])
+@pattern("Strobe Build", "Strobe speeds up over 8 bars", tags=["strobe"])
 def strobe_build() -> LightPattern:
     """Strobe that doubles speed every 2 bars (8 bar total build)."""
     return (

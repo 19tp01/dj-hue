@@ -7,7 +7,7 @@ A gentle, ambient pattern with warm orange tones. Good for intros and chill mome
 from dj_hue.patterns import pattern, light
 
 
-@pattern("warm_pulse", "Gentle pulsing in warm colors", tags=["chill", "warm", "ambient"])
+@pattern("Warm Pulse", "Gentle pulsing in warm colors", tags=["chill", "warm", "ambient"])
 def warm_pulse():
     """Warm orange pulse with phase spread across lights."""
     return (

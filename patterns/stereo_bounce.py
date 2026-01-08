@@ -8,7 +8,7 @@ Creates a ping-pong effect synced to the beat.
 from dj_hue.patterns import pattern, light, stack
 
 
-@pattern("stereo_bounce", "Left/right alternating bounce", tags=["stereo", "bounce", "energy"])
+@pattern("Stereo Bounce", "Left/right alternating bounce", tags=["stereo", "bounce", "energy"])
 def stereo_bounce():
     """Left and right groups alternate with red and cyan."""
     return stack(

@@ -1,10 +1,10 @@
 """Classic patterns - equivalents of the original engine.py builtins."""
 
-from ..decorator import pattern
-from ..strudel import light, stack, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, stack, LightPattern
 
 
-@pattern("sine_wave", "Sine wave with phase spread across lights", tags=["classic", "wave"])
+@pattern("Sine Wave", "Sine wave with phase spread across lights", tags=["classic", "wave"])
 def sine_wave() -> LightPattern:
     """
     Sine wave with phase spread across lights.
@@ -24,7 +24,7 @@ def sine_wave() -> LightPattern:
     )
 
 
-@pattern("slow_wave", "Slow ambient wave", tags=["classic", "wave", "ambient"])
+@pattern("Slow Wave", "Slow ambient wave", tags=["classic", "wave", "ambient"])
 def slow_wave() -> LightPattern:
     """Slow ambient wave - gentle pulsing over 4 beats."""
     return (
@@ -40,7 +40,7 @@ def slow_wave() -> LightPattern:
     )
 
 
-@pattern("chase", "Sawtooth chase pattern", tags=["classic", "chase"])
+@pattern("Chase", "Sawtooth chase pattern", tags=["classic", "chase"])
 def classic_chase() -> LightPattern:
     """Sawtooth chase pattern."""
     return (
@@ -56,7 +56,7 @@ def classic_chase() -> LightPattern:
     )
 
 
-@pattern("fast_chase", "Fast chase with cool colors", tags=["classic", "chase"])
+@pattern("Fast Chase", "Fast chase with cool colors", tags=["classic", "chase"])
 def fast_chase_classic() -> LightPattern:
     """Fast chase pattern with cool colors."""
     return (
@@ -72,7 +72,7 @@ def fast_chase_classic() -> LightPattern:
     )
 
 
-@pattern("pulse", "All lights pulse together on beat", tags=["classic"])
+@pattern("Pulse", "All lights pulse together on beat", tags=["classic"])
 def pulse() -> LightPattern:
     """All lights pulse together - unified pulsing without phase spread."""
     return (
@@ -87,13 +87,13 @@ def pulse() -> LightPattern:
     )
 
 
-@pattern("strobe", "Fast strobe on 16th notes", tags=["classic", "strobe"])
+@pattern("Classic Strobe", "Fast strobe on 16th notes", tags=["classic", "strobe"])
 def strobe() -> LightPattern:
     """Fast strobe on 16th notes."""
     return light("all ~").fast(8).color("white")
 
 
-@pattern("left_right", "Left/right alternating with red/blue", tags=["classic"])
+@pattern("Left Right", "Left/right alternating with red/blue", tags=["classic"])
 def left_right() -> LightPattern:
     """Left/right alternating with red/blue."""
     return stack(

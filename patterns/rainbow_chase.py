@@ -8,7 +8,7 @@ Great for high-energy moments.
 from dj_hue.patterns import pattern, light
 
 
-@pattern("rainbow_chase_user", "Fast rainbow chase across all lights", tags=["rainbow", "chase", "energy"])
+@pattern("Rainbow Chase User", "Fast rainbow chase across all lights", tags=["rainbow", "chase", "energy"])
 def rainbow_chase():
     """Rainbow chase with fast intensity cycling through colors."""
     from dj_hue.patterns import cat

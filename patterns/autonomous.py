@@ -1,10 +1,10 @@
 """Autonomous patterns - each light behaves independently."""
 
-from ..decorator import pattern
-from ..strudel import light, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, LightPattern
 
 
-@pattern("s_autonomous", "Each light independently on/off at random beats", tags=["autonomous"])
+@pattern("Autonomous", "Each light independently on/off at random beats", tags=["autonomous"])
 def autonomous_lights() -> LightPattern:
     """
     Each light behaves independently with random on/off timing.
@@ -24,7 +24,7 @@ def autonomous_lights() -> LightPattern:
     )
 
 
-@pattern("s_fireflies", "Firefly-like random blinking, warm colors", tags=["autonomous", "ambient"])
+@pattern("Fireflies", "Firefly-like random blinking, warm colors", tags=["autonomous", "ambient"])
 def fireflies() -> LightPattern:
     """
     Firefly-like effect with warm colors.
@@ -41,7 +41,7 @@ def fireflies() -> LightPattern:
     )
 
 
-@pattern("s_rainbow_auto", "Autonomous rainbow - random colors, 2-4 beats on/off", tags=["autonomous", "rainbow"])
+@pattern("Rainbow Auto", "Autonomous rainbow - random colors, 2-4 beats on/off", tags=["autonomous", "rainbow"])
 def rainbow_autonomous() -> LightPattern:
     """
     Autonomous rainbow - each light randomly picks rainbow colors.

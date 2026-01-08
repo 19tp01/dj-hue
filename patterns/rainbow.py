@@ -1,10 +1,10 @@
 """Rainbow patterns - color cycling effects."""
 
-from ..decorator import pattern
-from ..strudel import light, cat, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, cat, LightPattern
 
 
-@pattern("rainbow_cycle", "Slow rainbow color cycle", tags=["rainbow", "ambient"])
+@pattern("Rainbow Cycle", "Slow rainbow color cycle", tags=["rainbow", "ambient"])
 def rainbow_cycle() -> LightPattern:
     """
     Slow rainbow cycle through all colors.
@@ -23,7 +23,7 @@ def rainbow_cycle() -> LightPattern:
     ).slow(2)
 
 
-@pattern("rainbow_wave", "Rainbow wave across lights", tags=["rainbow"])
+@pattern("Rainbow Wave", "Rainbow wave across lights", tags=["rainbow"])
 def rainbow_wave() -> LightPattern:
     """
     Rainbow colors wave across lights with offset.

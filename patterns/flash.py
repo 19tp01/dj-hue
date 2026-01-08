@@ -1,10 +1,10 @@
 """Flash patterns - quick bursts and beat-synced flashes."""
 
-from ..decorator import pattern
-from ..strudel import light, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, LightPattern
 
 
-@pattern("s_stagger", "Random sequential white flash, fades to red", tags=["flash"])
+@pattern("Stagger", "Random sequential white flash, fades to red", tags=["flash"])
 def stagger_flash() -> LightPattern:
     """
     Random sequential white flash, each light fades to red.
@@ -22,7 +22,7 @@ def stagger_flash() -> LightPattern:
     )
 
 
-@pattern("s_beat_flash", "All lights flash on each beat", tags=["flash"])
+@pattern("Beat Flash", "All lights flash on each beat", tags=["flash"])
 def beat_flash() -> LightPattern:
     """All lights flash white on each beat (4 times per bar)."""
     return (
@@ -32,7 +32,7 @@ def beat_flash() -> LightPattern:
     )
 
 
-@pattern("s_downbeat", "Flash on beat 1 only", tags=["flash"])
+@pattern("Downbeat", "Flash on beat 1 only", tags=["flash"])
 def downbeat_flash() -> LightPattern:
     """Single flash on beat 1, fades for rest of bar."""
     return (

@@ -177,7 +177,7 @@ class PatternEngine:
 
     def _load_all_patterns(self) -> None:
         """Load patterns from library and user directory."""
-        patterns = load_patterns(user_dir=self._patterns_dir)
+        patterns = load_patterns(patterns_dir=self._patterns_dir)
         for name, (pattern, description) in patterns.items():
             self.register(name, pattern, description)
 
@@ -202,7 +202,7 @@ class PatternEngine:
         self._current_pattern_index = 0
 
         # Reload all patterns (clears decorator registry and re-imports files)
-        patterns = reload_patterns(user_dir=self._patterns_dir)
+        patterns = reload_patterns(patterns_dir=self._patterns_dir)
         for name, (pattern, description) in patterns.items():
             self.register(name, pattern, description)
 

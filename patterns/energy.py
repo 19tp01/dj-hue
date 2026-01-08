@@ -1,10 +1,10 @@
 """Energy patterns - dynamic, high-energy effects."""
 
-from ..decorator import pattern
-from ..strudel import light, stack, LightPattern
+from dj_hue.patterns.decorator import pattern
+from dj_hue.patterns.strudel import light, stack, LightPattern
 
 
-@pattern("s_alternate", "Left/right alternating", tags=["energy"])
+@pattern("Alternate", "Left/right alternating", tags=["energy"])
 def alternating() -> LightPattern:
     """Left and right groups alternate each half bar."""
     return stack(
@@ -13,7 +13,7 @@ def alternating() -> LightPattern:
     )
 
 
-@pattern("s_random_pop", "Random lights pop on each beat", tags=["energy"])
+@pattern("Random Pop", "Random lights pop on each beat", tags=["energy"])
 def random_pop() -> LightPattern:
     """Random lights pop on each beat with quick fade."""
     return (
