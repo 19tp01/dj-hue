@@ -20,7 +20,7 @@ from typing import Optional
 
 import mido
 
-from dj_hue.patterns import PatternEngine, LightSetup, LightGroup, QuickAction, get_strudel_presets
+from dj_hue.patterns import PatternEngine, LightSetup, LightGroup, QuickAction
 
 
 # Render thread runs at 50 Hz to match Zigbee transmission rate
@@ -520,13 +520,11 @@ def main():
     else:
         print(f"[ZONES] Missing zones - spatial patterns will be disabled")
 
-    pattern_engine = PatternEngine(light_setup=light_setup)
-
-    # Register Strudel patterns
-    strudel_presets = get_strudel_presets()
-    for name, (pattern, description) in strudel_presets.items():
-        pattern_engine.register(name, pattern, description)
-    print(f"[PATTERNS] Loaded {len(strudel_presets)} patterns")
+    # Create pattern engine with user patterns directory
+    # Patterns are auto-loaded via @pattern decorator
+    patterns_dir = Path(__file__).parent.parent.parent.parent / "patterns"
+    pattern_engine = PatternEngine(light_setup=light_setup, patterns_dir=patterns_dir)
+    print(f"[PATTERNS] Loaded {len(pattern_engine.pattern_names)} patterns")
 
     # Shared state between MIDI and render threads
     engine_state = EngineState()
@@ -659,10 +657,11 @@ def main():
                         ui_message = ""
                         draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
 
-                # Non-blocking receive with timeout
-                msg = port.receive(block=True)
+                # Receive with timeout so we can check for shutdown
+                msg = port.poll()  # Non-blocking
 
                 if msg is None:
+                    time.sleep(0.001)  # Brief sleep when no MIDI to reduce CPU
                     continue
 
                 if msg.type == "clock":
