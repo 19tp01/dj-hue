@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .envelope import Envelope
+    from .automation import Automation
     from ..pattern_def import HSV
 
 
@@ -80,12 +81,14 @@ class LightValue:
         color: Target color (HSV)
         intensity: Base intensity multiplier (0.0-1.0)
         envelope: Optional envelope for time-varying intensity/color
+        automation: Optional automation curve for continuous brightness control
     """
     light_id: int | None = None
     group: str | None = None
     color: "HSV | None" = None
     intensity: float = 1.0
     envelope: "Envelope | None" = None
+    automation: "Automation | None" = None
 
     def with_color(self, color: "HSV") -> "LightValue":
         """Return a copy with updated color."""
@@ -95,6 +98,7 @@ class LightValue:
             color=color,
             intensity=self.intensity,
             envelope=self.envelope,
+            automation=self.automation,
         )
 
     def with_intensity(self, intensity: float) -> "LightValue":
@@ -105,6 +109,7 @@ class LightValue:
             color=self.color,
             intensity=intensity,
             envelope=self.envelope,
+            automation=self.automation,
         )
 
     def with_envelope(self, envelope: "Envelope") -> "LightValue":
@@ -115,6 +120,18 @@ class LightValue:
             color=self.color,
             intensity=self.intensity,
             envelope=envelope,
+            automation=self.automation,
+        )
+
+    def with_automation(self, automation: "Automation") -> "LightValue":
+        """Return a copy with updated automation."""
+        return LightValue(
+            light_id=self.light_id,
+            group=self.group,
+            color=self.color,
+            intensity=self.intensity,
+            envelope=self.envelope,
+            automation=automation,
         )
 
 

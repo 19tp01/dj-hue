@@ -41,6 +41,20 @@ from .colors import (
     saturate,
     NAMED_COLORS,
 )
+from .automation import (
+    Automation,
+    AutomationBuilder,
+    Segment,
+    CurveType,
+    automation,
+    ramp,
+    hold,
+    keyframes,
+    triangle,
+    sawtooth,
+    pulse,
+    sine_wave,
+)
 from .presets import get_strudel_presets
 from .layered import LayeredPattern, ZoneLayer
 from .presets_v2 import get_spatial_presets

@@ -113,13 +113,22 @@ class PatternScheduler:
                     # Get base color
                     base_color = hap.value.color or self.default_color
 
-                    # Apply envelope if present
+                    # Start with base intensity
+                    intensity = hap.value.intensity
+
+                    # Apply automation if present (uses absolute beat position)
+                    automation = hap.value.automation
+                    if automation:
+                        auto_value = automation.get_value(beat_position)
+                        if auto_value is not None:
+                            intensity *= auto_value
+
+                    # Apply envelope if present (uses relative event time)
                     envelope = hap.value.envelope
                     if envelope:
-                        intensity = envelope.get_intensity(time_in_event) * hap.value.intensity
+                        intensity *= envelope.get_intensity(time_in_event)
                         color = envelope.get_color(time_in_event, base_color)
                     else:
-                        intensity = hap.value.intensity
                         color = base_color
 
                     colors[light_id] = RGB.from_hsv(color.hue, color.saturation, intensity)
@@ -136,7 +145,9 @@ class PatternScheduler:
                 continue
 
             envelope = active.hap.value.envelope
-            if not envelope:
+            automation = active.hap.value.automation
+
+            if not envelope and not automation:
                 expired_events.append(light_id)
                 continue
 
@@ -147,8 +158,23 @@ class PatternScheduler:
             # Stay active until the event ends (sustain at sustain level)
             if current_time < event_end and time_since_event_start >= 0:
                 base_color = active.hap.value.color or self.default_color
-                intensity = envelope.get_intensity(time_since_event_start) * active.hap.value.intensity
-                color = envelope.get_color(time_since_event_start, base_color)
+
+                # Start with base intensity
+                intensity = active.hap.value.intensity
+
+                # Apply automation if present (uses absolute beat position)
+                if automation:
+                    auto_value = automation.get_value(beat_position)
+                    if auto_value is not None:
+                        intensity *= auto_value
+
+                # Apply envelope if present (uses relative event time)
+                if envelope:
+                    intensity *= envelope.get_intensity(time_since_event_start)
+                    color = envelope.get_color(time_since_event_start, base_color)
+                else:
+                    color = base_color
+
                 colors[light_id] = RGB.from_hsv(color.hue, color.saturation, intensity)
             else:
                 # Event ended, mark for removal

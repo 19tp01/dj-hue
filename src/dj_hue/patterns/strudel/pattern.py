@@ -16,6 +16,11 @@ from .envelope import Envelope
 from .colors import resolve_color
 from ..pattern_def import HSV
 
+# Import automation types (for type hints)
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .automation import Automation, AutomationBuilder
+
 
 # Type alias for query functions
 QueryFunc = Callable[[TimeSpan, LightContext], list[LightHap]]
@@ -313,6 +318,75 @@ class LightPattern:
             return [h.with_value(h.value.with_intensity(value)) for h in haps]
 
         return LightPattern(query_intensity)
+
+    def brightness(
+        self,
+        auto: "Automation | AutomationBuilder",
+    ) -> LightPattern:
+        """
+        Apply a brightness automation curve to this pattern.
+
+        The automation defines how brightness varies over beat positions,
+        similar to automation lanes in a DAW.
+
+        Args:
+            auto: Automation object or builder defining the brightness curve
+
+        Example:
+            from dj_hue.patterns.strudel.automation import ramp, keyframes, automation
+
+            # Simple fade in over first beat
+            pattern.brightness(ramp(0, 1, 0.0, 1.0))
+
+            # Complex automation
+            pattern.brightness(
+                automation()
+                    .ramp(0, 1, 0.0, 1.0)      # Fade in
+                    .hold(1, 2)                 # Hold
+                    .ramp(2, 4, 1.0, 0.0)       # Fade out
+            )
+
+            # From keyframes
+            pattern.brightness(keyframes([
+                (0, 0.0),    # Beat 0: off
+                (1, 1.0),    # Beat 1: full
+                (4, 0.0),    # Beat 4: off
+            ]))
+        """
+        # Import here to avoid circular dependency
+        from .automation import AutomationBuilder
+
+        # Build if it's a builder
+        if isinstance(auto, AutomationBuilder):
+            auto = auto.build()
+
+        def query_brightness(span: TimeSpan, ctx: LightContext) -> list[LightHap]:
+            haps = self._query(span, ctx)
+            result = []
+
+            for hap in haps:
+                # Get the event's time in beats
+                event_span = hap.whole_or_part()
+                event_start_beat = float(event_span.start) * ctx.cycle_beats
+
+                # Get automation value at event start
+                brightness = auto.get_value(event_start_beat)
+
+                if brightness is not None:
+                    # Apply brightness as intensity multiplier
+                    new_intensity = hap.value.intensity * brightness
+                    new_value = hap.value.with_intensity(new_intensity)
+
+                    # Also store automation reference for continuous rendering
+                    new_value = new_value.with_automation(auto)
+                    result.append(hap.with_value(new_value))
+                else:
+                    # No automation at this point, keep original
+                    result.append(hap)
+
+            return result
+
+        return LightPattern(query_brightness)
 
     def envelope(
         self,
