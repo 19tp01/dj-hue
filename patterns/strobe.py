@@ -23,3 +23,9 @@ def strobe_build() -> LightPattern:
         .slow(2)
         .color("white")
     )
+
+
+@pattern("Strobe Slow", "1/8 note on, 1/8 note off white strobe", tags=["strobe"])
+def strobe_slow() -> LightPattern:
+    """Slower strobe - 1/8 note on, 1/8 note off."""
+    return light("all ~").fast(4).color("white")

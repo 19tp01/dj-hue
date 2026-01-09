@@ -27,12 +27,15 @@ class Modulator:
     Applies oscillating intensity modulation based on absolute time
     (bar position), independent of individual event timing.
 
+    Supports chaining multiple modulators - their intensities multiply together.
+
     Attributes:
         wave: The waveform type (sine, triangle, saw, square)
         frequency: Oscillations per bar (1.0 = one full cycle per bar)
         min_intensity: Minimum intensity (0.0-1.0)
         max_intensity: Maximum intensity (0.0-1.0)
         phase: Phase offset in cycles (0.0-1.0, default 0.0)
+        _chain: List of additional modulators to multiply with this one
 
     Example:
         # Gentle breathing: 80-100% over each bar
@@ -40,6 +43,11 @@ class Modulator:
 
         # Fast pulse: 50-100% 4x per bar
         Modulator(WaveType.SQUARE, frequency=4.0, min_intensity=0.5, max_intensity=1.0)
+
+        # Chained: per-beat sawtooth with per-bar envelope
+        mod1 = Modulator(WaveType.SAW, frequency=4.0, min_intensity=1.0, max_intensity=0.8)
+        mod2 = Modulator(WaveType.SAW, frequency=1.0, min_intensity=1.0, max_intensity=0.25)
+        chained = mod1.chain(mod2)  # intensities multiply together
     """
 
     wave: WaveType = WaveType.SINE
@@ -47,6 +55,7 @@ class Modulator:
     min_intensity: float = 0.0
     max_intensity: float = 1.0
     phase: float = 0.0
+    _chain: list["Modulator"] | None = None
 
     def get_intensity(self, cycle_position: float) -> float:
         """
@@ -87,4 +96,49 @@ class Modulator:
             wave_value = 1.0
 
         # Map wave value to intensity range
-        return self.min_intensity + wave_value * (self.max_intensity - self.min_intensity)
+        intensity = self.min_intensity + wave_value * (self.max_intensity - self.min_intensity)
+
+        # Apply chained modulators (multiply intensities)
+        if self._chain:
+            for chained_mod in self._chain:
+                intensity *= chained_mod.get_intensity(cycle_position)
+
+        return intensity
+
+    def chain(self, other: "Modulator") -> "Modulator":
+        """
+        Chain another modulator to multiply with this one.
+
+        Returns a new Modulator with both applied. Intensities multiply together.
+
+        Example:
+            # Per-beat decay with per-bar envelope
+            per_beat = Modulator(WaveType.SAW, frequency=4.0, min_intensity=1.0, max_intensity=0.8)
+            per_bar = Modulator(WaveType.SAW, frequency=1.0, min_intensity=1.0, max_intensity=0.25)
+            combined = per_beat.chain(per_bar)
+        """
+        # Collect all chained modulators (flatten)
+        existing_chain = list(self._chain) if self._chain else []
+        if other._chain:
+            existing_chain.extend(other._chain)
+            # Add other's base modulator without its chain
+            other_base = Modulator(
+                wave=other.wave,
+                frequency=other.frequency,
+                min_intensity=other.min_intensity,
+                max_intensity=other.max_intensity,
+                phase=other.phase,
+                _chain=None,
+            )
+            existing_chain.append(other_base)
+        else:
+            existing_chain.append(other)
+
+        return Modulator(
+            wave=self.wave,
+            frequency=self.frequency,
+            min_intensity=self.min_intensity,
+            max_intensity=self.max_intensity,
+            phase=self.phase,
+            _chain=existing_chain,
+        )

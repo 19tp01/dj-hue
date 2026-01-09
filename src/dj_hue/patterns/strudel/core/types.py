@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from .envelope import Envelope
     from ..modulator import Modulator
+    from ..palette import PaletteRef
 
 
 class HSV(NamedTuple):
@@ -104,23 +105,38 @@ class LightValue:
     Attributes:
         light_id: Which light this event affects (can be None for group references)
         group: Group name if this is a group reference (e.g., "all", "left")
-        color: Target color (HSV)
+        color: Target color (HSV) - resolved immediately
+        color_ref: Palette reference for deferred color resolution
         intensity: Base intensity multiplier (0.0-1.0)
         envelope: Optional envelope for time-varying intensity/color
     """
     light_id: int | None = None
     group: str | None = None
     color: "HSV | None" = None
+    color_ref: "PaletteRef | None" = None
     intensity: float = 1.0
     envelope: "Envelope | None" = None
     modulator: "Modulator | None" = None
 
     def with_color(self, color: "HSV") -> "LightValue":
-        """Return a copy with updated color."""
+        """Return a copy with updated color (clears color_ref)."""
         return LightValue(
             light_id=self.light_id,
             group=self.group,
             color=color,
+            color_ref=None,  # Clear ref when setting literal color
+            intensity=self.intensity,
+            envelope=self.envelope,
+            modulator=self.modulator,
+        )
+
+    def with_color_ref(self, ref: "PaletteRef") -> "LightValue":
+        """Return a copy with palette reference (clears literal color)."""
+        return LightValue(
+            light_id=self.light_id,
+            group=self.group,
+            color=None,  # Clear literal when setting ref
+            color_ref=ref,
             intensity=self.intensity,
             envelope=self.envelope,
             modulator=self.modulator,
@@ -132,6 +148,7 @@ class LightValue:
             light_id=self.light_id,
             group=self.group,
             color=self.color,
+            color_ref=self.color_ref,
             intensity=intensity,
             envelope=self.envelope,
             modulator=self.modulator,
@@ -143,6 +160,7 @@ class LightValue:
             light_id=self.light_id,
             group=self.group,
             color=self.color,
+            color_ref=self.color_ref,
             intensity=self.intensity,
             envelope=envelope,
             modulator=self.modulator,
@@ -154,6 +172,7 @@ class LightValue:
             light_id=self.light_id,
             group=self.group,
             color=self.color,
+            color_ref=self.color_ref,
             intensity=self.intensity,
             envelope=self.envelope,
             modulator=modulator,

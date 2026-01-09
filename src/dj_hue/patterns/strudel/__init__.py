@@ -52,11 +52,16 @@ from .scheduler import PatternScheduler, StrudelPatternWrapper
 from .color import (
     color_from_name,
     resolve_color,
+    hex_to_hsv,
     hue_rotate,
     dim,
     saturate,
     NAMED_COLORS,
 )
+
+# Palette system
+from .palette import palette, Palette, PaletteRef
+from .palettes import get_palette, register_palette, list_palettes, PALETTES
 
 __all__ = [
     # Core types
@@ -83,8 +88,17 @@ __all__ = [
     # Colors
     "color_from_name",
     "resolve_color",
+    "hex_to_hsv",
     "hue_rotate",
     "dim",
     "saturate",
     "NAMED_COLORS",
+    # Palette system
+    "palette",
+    "Palette",
+    "PaletteRef",
+    "get_palette",
+    "register_palette",
+    "list_palettes",
+    "PALETTES",
 ]

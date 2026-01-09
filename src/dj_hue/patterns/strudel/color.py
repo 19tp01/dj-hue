@@ -4,7 +4,43 @@ Color utilities for the Strudel pattern system.
 Provides color name resolution and color manipulation functions.
 """
 
+import colorsys
+
 from .core.types import HSV
+
+
+def hex_to_hsv(hex_color: str) -> HSV:
+    """
+    Convert hex color string to HSV.
+
+    Args:
+        hex_color: Hex string like "#FF6B00", "#F60", "FF6B00"
+
+    Returns:
+        HSV color tuple
+
+    Raises:
+        ValueError: If hex format is invalid
+    """
+    # Strip # prefix if present
+    hex_str = hex_color.lstrip("#")
+
+    # Expand shorthand (#RGB -> #RRGGBB)
+    if len(hex_str) == 3:
+        hex_str = "".join(c * 2 for c in hex_str)
+
+    if len(hex_str) != 6:
+        raise ValueError(f"Invalid hex color: {hex_color}")
+
+    try:
+        r = int(hex_str[0:2], 16) / 255.0
+        g = int(hex_str[2:4], 16) / 255.0
+        b = int(hex_str[4:6], 16) / 255.0
+    except ValueError:
+        raise ValueError(f"Invalid hex color: {hex_color}")
+
+    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    return HSV(h, s, v)
 
 
 # Named colors (hue, saturation, value)
@@ -60,10 +96,10 @@ def color_from_name(name: str) -> HSV:
 
 def resolve_color(color: HSV | str | None) -> HSV | None:
     """
-    Resolve a color that may be a name string or HSV tuple.
+    Resolve a color that may be a name string, hex string, or HSV tuple.
 
     Args:
-        color: Either an HSV tuple, a color name string, or None
+        color: Either an HSV tuple, a color name string, hex string (#RGB or #RRGGBB), or None
 
     Returns:
         HSV color or None
@@ -71,6 +107,9 @@ def resolve_color(color: HSV | str | None) -> HSV | None:
     if color is None:
         return None
     if isinstance(color, str):
+        # Detect hex colors
+        if color.startswith("#"):
+            return hex_to_hsv(color)
         return color_from_name(color)
     return color
 

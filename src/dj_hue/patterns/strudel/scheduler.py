@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from .core.types import TimeSpan, LightHap, LightContext, HSV
 from .core.pattern import LightPattern
 from .core.envelope import Envelope
+from .palette import Palette, PaletteRef
 
 if TYPE_CHECKING:
     from ...lights.effects import RGB
@@ -40,6 +41,7 @@ class PatternScheduler:
         context: LightContext,
         default_color: HSV | None = None,
         cycle_beats: float = 4.0,
+        palette: Palette | None = None,
     ):
         """
         Initialize the scheduler.
@@ -49,14 +51,110 @@ class PatternScheduler:
             context: Light context (num_lights, groups)
             default_color: Default color when none specified
             cycle_beats: Beats per cycle (default 4 for 4/4 time)
+            palette: Active color palette for resolving PaletteRef colors
         """
         self.pattern = pattern
         self.context = context
         self.default_color = default_color or HSV(0.0, 1.0, 1.0)  # Red default
         self.cycle_beats = cycle_beats
+        self.palette = palette
 
         # Track active events for long envelopes
         self._active_events: dict[int, ActiveEvent] = {}
+
+    def set_palette(self, palette: Palette | None) -> None:
+        """Update the active palette for color resolution."""
+        self.palette = palette
+
+    def _resolve_color(
+        self,
+        color: HSV | None,
+        color_ref: PaletteRef | None,
+        event_index: int,
+        cycle_position: Fraction,
+    ) -> HSV:
+        """
+        Resolve a color, handling both literal HSV and PaletteRef.
+
+        Args:
+            color: Literal HSV color (takes precedence)
+            color_ref: Palette reference for deferred resolution
+            event_index: Index of this event (for CYCLE mode)
+            cycle_position: Current cycle position (for RANDOM seeding)
+
+        Returns:
+            Resolved HSV color, or default_color if unable to resolve
+        """
+        # Literal color takes precedence
+        if color is not None:
+            return color
+
+        # Try to resolve palette reference
+        if color_ref is not None and self.palette is not None:
+            return color_ref.resolve(
+                palette=self.palette,
+                event_index=event_index,
+                cycle_position=cycle_position,
+            )
+
+        # Fallback to default
+        return self.default_color
+
+    def _get_envelope_color(
+        self,
+        envelope: Envelope,
+        time_in_event: float,
+        base_color: HSV,
+        event_index: int,
+        cycle_position: Fraction,
+    ) -> HSV:
+        """
+        Get color from envelope, resolving any palette references.
+
+        Handles flash/fade color resolution with palette support.
+        """
+        from .core.envelope import interpolate_hsv
+
+        # Resolve flash color (literal or palette ref)
+        flash_color = envelope.flash_color
+        if flash_color is None and envelope.flash_ref is not None and self.palette is not None:
+            flash_color = envelope.flash_ref.resolve(
+                palette=self.palette,
+                event_index=event_index,
+                cycle_position=cycle_position,
+            )
+
+        # Resolve fade color (literal or palette ref)
+        fade_color = envelope.fade_color
+        if fade_color is None and envelope.fade_ref is not None and self.palette is not None:
+            fade_color = envelope.fade_ref.resolve(
+                palette=self.palette,
+                event_index=event_index,
+                cycle_position=cycle_position,
+            )
+
+        # During attack phase, use flash color if available
+        if time_in_event < envelope.attack:
+            if flash_color:
+                return flash_color
+            if fade_color:
+                return fade_color
+            return base_color
+
+        # After attack, use fade color or interpolate
+        if fade_color:
+            if flash_color and envelope.decay > 0:
+                # Interpolate from flash to fade during decay
+                time_after_attack = time_in_event - envelope.attack
+                if time_after_attack < envelope.decay:
+                    t = time_after_attack / envelope.decay
+                    return interpolate_hsv(flash_color, fade_color, t)
+            return fade_color
+
+        if flash_color:
+            return flash_color
+
+        return base_color
 
     def compute_colors(self, beat_position: float) -> dict[int, "RGB"]:
         """
@@ -88,7 +186,7 @@ class PatternScheduler:
         colors: dict[int, RGB] = {}
 
         # First, check currently active events from the query
-        for hap in haps:
+        for hap_idx, hap in enumerate(haps):
             # Resolve light_id(s) for this hap
             if hap.value.light_id is not None:
                 light_ids = [hap.value.light_id]
@@ -109,14 +207,22 @@ class PatternScheduler:
                 if event_span.contains(cycle_position):
                     time_in_event = current_time - event_start
 
-                    # Get base color
-                    base_color = hap.value.color or self.default_color
+                    # Get base color (resolving palette ref if needed)
+                    base_color = self._resolve_color(
+                        hap.value.color,
+                        hap.value.color_ref,
+                        event_index=hap_idx,
+                        cycle_position=cycle_position,
+                    )
 
                     # Apply envelope if present
                     envelope = hap.value.envelope
                     if envelope:
                         envelope_intensity = envelope.get_intensity(time_in_event)
-                        color = envelope.get_color(time_in_event, base_color)
+                        # Resolve envelope colors (flash/fade) with palette support
+                        color = self._get_envelope_color(
+                            envelope, time_in_event, base_color, hap_idx, cycle_position
+                        )
                     else:
                         envelope_intensity = 1.0
                         color = base_color
@@ -157,9 +263,18 @@ class PatternScheduler:
 
             # Stay active until the envelope is done (attack + decay complete)
             if current_time < envelope_end_time and time_since_event_start >= 0:
-                base_color = active.hap.value.color or self.default_color
+                # Resolve base color (using light_id as stable event index for active events)
+                base_color = self._resolve_color(
+                    active.hap.value.color,
+                    active.hap.value.color_ref,
+                    event_index=light_id,  # Use light_id for consistent color during envelope
+                    cycle_position=cycle_position,
+                )
                 envelope_intensity = envelope.get_intensity(time_since_event_start)
-                color = envelope.get_color(time_since_event_start, base_color)
+                # Resolve envelope colors with palette support
+                color = self._get_envelope_color(
+                    envelope, time_since_event_start, base_color, light_id, cycle_position
+                )
 
                 # Apply modulator if present (uses absolute cycle position)
                 modulator = active.hap.value.modulator
@@ -208,8 +323,10 @@ class StrudelPatternWrapper:
     pattern: LightPattern
     description: str = ""
     default_color: HSV = field(default_factory=lambda: HSV(0.0, 1.0, 1.0))
+    default_palette_name: str | None = None
 
     _scheduler: PatternScheduler | None = field(default=None, repr=False)
+    _palette: Palette | None = field(default=None, repr=False)
 
     def get_scheduler(self, context: LightContext) -> PatternScheduler:
         """Get or create the scheduler for this pattern."""
@@ -218,8 +335,15 @@ class StrudelPatternWrapper:
                 pattern=self.pattern,
                 context=context,
                 default_color=self.default_color,
+                palette=self._palette,
             )
         return self._scheduler
+
+    def set_palette(self, palette: Palette | None) -> None:
+        """Set the active palette for color resolution."""
+        self._palette = palette
+        if self._scheduler:
+            self._scheduler.set_palette(palette)
 
     def compute_colors(
         self,

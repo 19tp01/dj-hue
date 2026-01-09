@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 def load_patterns(
     patterns_dir: Path | None = None,
-) -> dict[str, tuple["LightPattern", str]]:
+) -> dict[str, tuple["LightPattern", str, str | None]]:
     """
     Load all patterns from directory.
 
@@ -25,7 +25,7 @@ def load_patterns(
         patterns_dir: Directory containing pattern files (e.g., patterns/ in project root)
 
     Returns:
-        Dict mapping pattern name to (LightPattern, description).
+        Dict mapping pattern name to (LightPattern, description, default_palette).
     """
     from .decorator import clear_registry, get_registered_patterns
 
@@ -41,7 +41,7 @@ def load_patterns(
 
 def reload_patterns(
     patterns_dir: Path | None = None,
-) -> dict[str, tuple["LightPattern", str]]:
+) -> dict[str, tuple["LightPattern", str, str | None]]:
     """
     Reload all patterns (for hot-reload).
 

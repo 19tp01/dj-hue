@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .types import HSV
+    from ..palette import PaletteRef
 
 
 @dataclass
@@ -37,9 +38,13 @@ class Envelope:
     sustain: float = 1.0
     release: float = 0.0
 
-    # Color transitions
+    # Color transitions (literal HSV values)
     flash_color: "HSV | None" = None  # Color during attack phase
     fade_color: "HSV | None" = None   # Color during decay/sustain phase
+
+    # Palette references (for deferred color resolution)
+    flash_ref: "PaletteRef | None" = None  # Palette ref for attack phase
+    fade_ref: "PaletteRef | None" = None   # Palette ref for decay/sustain
 
     @property
     def total_duration(self) -> float:
@@ -139,7 +144,7 @@ class Envelope:
         flash: "HSV | None" = None,
         fade: "HSV | None" = None,
     ) -> "Envelope":
-        """Return a new envelope with updated colors."""
+        """Return a new envelope with updated colors (clears refs for set colors)."""
         return Envelope(
             attack=self.attack,
             decay=self.decay,
@@ -147,6 +152,34 @@ class Envelope:
             release=self.release,
             flash_color=flash if flash is not None else self.flash_color,
             fade_color=fade if fade is not None else self.fade_color,
+            flash_ref=None if flash is not None else self.flash_ref,
+            fade_ref=None if fade is not None else self.fade_ref,
+        )
+
+    def with_flash_ref(self, ref: "PaletteRef") -> "Envelope":
+        """Return a new envelope with flash palette reference (clears flash_color)."""
+        return Envelope(
+            attack=self.attack,
+            decay=self.decay,
+            sustain=self.sustain,
+            release=self.release,
+            flash_color=None,
+            fade_color=self.fade_color,
+            flash_ref=ref,
+            fade_ref=self.fade_ref,
+        )
+
+    def with_fade_ref(self, ref: "PaletteRef") -> "Envelope":
+        """Return a new envelope with fade palette reference (clears fade_color)."""
+        return Envelope(
+            attack=self.attack,
+            decay=self.decay,
+            sustain=self.sustain,
+            release=self.release,
+            flash_color=self.flash_color,
+            fade_color=None,
+            flash_ref=self.flash_ref,
+            fade_ref=ref,
         )
 
     def merge(self, other: "Envelope | None") -> "Envelope":
@@ -162,6 +195,8 @@ class Envelope:
             release=self.release if self.release != 0 else other.release,
             flash_color=self.flash_color or other.flash_color,
             fade_color=self.fade_color or other.fade_color,
+            flash_ref=self.flash_ref or other.flash_ref,
+            fade_ref=self.fade_ref or other.fade_ref,
         )
 
 

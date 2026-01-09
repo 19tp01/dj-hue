@@ -25,6 +25,8 @@ from .strudel import (
     PatternScheduler,
     HSV,
 )
+from .strudel.palette import Palette
+from .strudel.palettes import get_palette, list_palettes
 
 
 @dataclass
@@ -98,11 +100,16 @@ class PatternEngine:
         # Single unified pattern registry (Strudel only)
         self._patterns: dict[str, LightPattern] = {}
         self._pattern_descriptions: dict[str, str] = {}
+        self._pattern_default_palettes: dict[str, str] = {}  # pattern name -> palette name
         self._pattern_names: list[str] = []
         self._current_pattern_index: int = 0
 
         # Current scheduler for rendering
         self._scheduler: PatternScheduler | None = None
+
+        # Palette state
+        self._active_palette: Palette | None = None
+        self._palette_override: str | None = None  # User-selected, persists across patterns
 
         # Quick action state
         self._active_quick_action: QuickAction | None = None
@@ -142,6 +149,7 @@ class PatternEngine:
         name: str,
         pattern: LightPattern,
         description: str = "",
+        default_palette: str | None = None,
     ) -> None:
         """
         Register a pattern.
@@ -150,9 +158,12 @@ class PatternEngine:
             name: Pattern name for selection
             pattern: LightPattern instance
             description: Optional description
+            default_palette: Default palette name for this pattern
         """
         self._patterns[name] = pattern
         self._pattern_descriptions[name] = description
+        if default_palette:
+            self._pattern_default_palettes[name] = default_palette
         if name not in self._pattern_names:
             self._pattern_names.append(name)
 
@@ -178,8 +189,8 @@ class PatternEngine:
     def _load_all_patterns(self) -> None:
         """Load patterns from library and user directory."""
         patterns = load_patterns(patterns_dir=self._patterns_dir)
-        for name, (pattern, description) in patterns.items():
-            self.register(name, pattern, description)
+        for name, (pattern, description, default_palette) in patterns.items():
+            self.register(name, pattern, description, default_palette)
 
     def reload_strudel_patterns(self) -> int:
         """
@@ -198,19 +209,21 @@ class PatternEngine:
         # Clear existing patterns
         self._patterns.clear()
         self._pattern_descriptions.clear()
+        self._pattern_default_palettes.clear()
         self._pattern_names.clear()
         self._current_pattern_index = 0
 
         # Reload all patterns (clears decorator registry and re-imports files)
         patterns = reload_patterns(patterns_dir=self._patterns_dir)
-        for name, (pattern, description) in patterns.items():
-            self.register(name, pattern, description)
+        for name, (pattern, description, default_palette) in patterns.items():
+            self.register(name, pattern, description, default_palette)
 
         # Restore selection if possible
         if current_name and current_name in self._pattern_names:
             self._current_pattern_index = self._pattern_names.index(current_name)
 
-        # Rebuild scheduler for current pattern
+        # Rebuild scheduler for current pattern (preserves palette override)
+        self._update_active_palette()
         self._rebuild_scheduler()
 
         return len(self._patterns)
@@ -257,9 +270,77 @@ class PatternEngine:
         """Rebuild the scheduler for the current pattern."""
         pattern = self.current_pattern
         if pattern:
-            self._scheduler = PatternScheduler(pattern, self._get_light_context())
+            self._scheduler = PatternScheduler(
+                pattern,
+                self._get_light_context(),
+                palette=self._active_palette,
+            )
         else:
             self._scheduler = None
+
+    def _update_active_palette(self) -> None:
+        """Update active palette based on override or pattern default."""
+        if self._palette_override:
+            # User override takes precedence
+            self._active_palette = get_palette(self._palette_override)
+        else:
+            # Use pattern's default palette
+            pattern_name = self.get_current_pattern_name()
+            default_name = self._pattern_default_palettes.get(pattern_name)
+            if default_name:
+                self._active_palette = get_palette(default_name)
+            else:
+                self._active_palette = None
+
+        # Update scheduler if it exists
+        if self._scheduler:
+            self._scheduler.set_palette(self._active_palette)
+
+    def set_palette(self, palette_name: str | None) -> bool:
+        """
+        Set the active palette (user override).
+
+        Args:
+            palette_name: Palette name to use, or None to use pattern default
+
+        Returns:
+            True if palette was set successfully
+        """
+        if palette_name is None:
+            # Clear override, revert to pattern default
+            self._palette_override = None
+            self._update_active_palette()
+            return True
+
+        palette = get_palette(palette_name)
+        if palette is None:
+            return False
+
+        self._palette_override = palette_name
+        self._active_palette = palette
+
+        # Update scheduler if it exists
+        if self._scheduler:
+            self._scheduler.set_palette(palette)
+        return True
+
+    def get_active_palette(self) -> Palette | None:
+        """Get the currently active palette."""
+        return self._active_palette
+
+    def get_active_palette_name(self) -> str | None:
+        """Get the name of the currently active palette."""
+        if self._active_palette:
+            return self._active_palette.name
+        return None
+
+    def get_palette_override(self) -> str | None:
+        """Get the current palette override (None if using pattern default)."""
+        return self._palette_override
+
+    def get_available_palettes(self) -> list[str]:
+        """Get list of all available palette names."""
+        return list_palettes()
 
     def set_pattern(self, name: str) -> bool:
         """
@@ -272,6 +353,7 @@ class PatternEngine:
 
         if name in self._pattern_names:
             self._current_pattern_index = self._pattern_names.index(name)
+            self._update_active_palette()  # Load pattern's palette (unless override)
             self._rebuild_scheduler()
             if self._on_pattern_change:
                 self._on_pattern_change(name)
@@ -286,6 +368,7 @@ class PatternEngine:
         """
         if 0 <= idx < len(self._pattern_names):
             self._current_pattern_index = idx
+            self._update_active_palette()
             self._rebuild_scheduler()
             if self._on_pattern_change:
                 self._on_pattern_change(self._pattern_names[idx])
@@ -299,6 +382,7 @@ class PatternEngine:
         self._current_pattern_index = (self._current_pattern_index + 1) % len(
             self._pattern_names
         )
+        self._update_active_palette()
         self._rebuild_scheduler()
         if self._on_pattern_change:
             self._on_pattern_change(self._pattern_names[self._current_pattern_index])
@@ -311,6 +395,7 @@ class PatternEngine:
         self._current_pattern_index = (self._current_pattern_index - 1) % len(
             self._pattern_names
         )
+        self._update_active_palette()
         self._rebuild_scheduler()
         if self._on_pattern_change:
             self._on_pattern_change(self._pattern_names[self._current_pattern_index])
@@ -431,4 +516,6 @@ class PatternEngine:
             ),
             "available_zones": self.light_setup.available_zones,
             "has_dual_zones": self.has_dual_zones(),
+            "palette": self.get_active_palette_name(),
+            "palette_override": self._palette_override,
         }

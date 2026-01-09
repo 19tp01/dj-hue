@@ -15,6 +15,7 @@ from .types import TimeSpan, LightHap, LightValue, LightContext, HSV
 from .envelope import Envelope
 from ..modulator import Modulator, WaveType
 from ..color import resolve_color
+from ..palette import PaletteRef
 
 
 # Type alias for query functions
@@ -417,22 +418,32 @@ class LightPattern:
 
     def color(
         self,
-        color: HSV | str | None = None,
+        color: HSV | str | PaletteRef | None = None,
         *,
-        flash: HSV | str | None = None,
-        fade: HSV | str | None = None,
+        flash: HSV | str | PaletteRef | None = None,
+        fade: HSV | str | PaletteRef | None = None,
     ) -> LightPattern:
         """
         Set color properties.
 
         Args:
-            color: Base color for all events
+            color: Base color for all events (HSV, name string, or palette reference)
             flash: Color during envelope attack phase
             fade: Color during envelope decay/sustain phase
+
+        Examples:
+            .color("red")                    # Named color
+            .color(palette(0))               # First color from palette
+            .color(palette.random)           # Random color from palette
+            .color(flash=palette(0), fade=palette(1))  # Flash/fade from palette
         """
-        base_color = resolve_color(color)
-        flash_color = resolve_color(flash)
-        fade_color = resolve_color(fade)
+        # Pre-resolve literal colors, leave PaletteRef as-is
+        base_color = None if isinstance(color, PaletteRef) else resolve_color(color)
+        base_ref = color if isinstance(color, PaletteRef) else None
+        flash_color = None if isinstance(flash, PaletteRef) else resolve_color(flash)
+        flash_ref = flash if isinstance(flash, PaletteRef) else None
+        fade_color = None if isinstance(fade, PaletteRef) else resolve_color(fade)
+        fade_ref = fade if isinstance(fade, PaletteRef) else None
 
         def query_color(span: TimeSpan, ctx: LightContext) -> list[LightHap]:
             haps = self._query(span, ctx)
@@ -440,13 +451,27 @@ class LightPattern:
 
             for h in haps:
                 new_value = h.value
+
+                # Set base color or palette reference
                 if base_color:
                     new_value = new_value.with_color(base_color)
+                elif base_ref:
+                    new_value = new_value.with_color_ref(base_ref)
 
-                # Apply flash/fade colors to envelope
-                if flash_color or fade_color:
+                # Apply flash/fade colors/refs to envelope
+                if flash_color or fade_color or flash_ref or fade_ref:
                     env = new_value.envelope or Envelope()
-                    env = env.with_colors(flash=flash_color, fade=fade_color)
+
+                    # Set literal colors
+                    if flash_color or fade_color:
+                        env = env.with_colors(flash=flash_color, fade=fade_color)
+
+                    # Set palette refs
+                    if flash_ref:
+                        env = env.with_flash_ref(flash_ref)
+                    if fade_ref:
+                        env = env.with_fade_ref(fade_ref)
+
                     new_value = new_value.with_envelope(env)
 
                 result.append(h.with_value(new_value))
@@ -557,7 +582,12 @@ class LightPattern:
             result = []
 
             for h in haps:
-                new_value = h.value.with_modulator(mod)
+                # Chain with existing modulator if present
+                if h.value.modulator:
+                    chained_mod = h.value.modulator.chain(mod)
+                    new_value = h.value.with_modulator(chained_mod)
+                else:
+                    new_value = h.value.with_modulator(mod)
                 result.append(h.with_value(new_value))
 
             return result

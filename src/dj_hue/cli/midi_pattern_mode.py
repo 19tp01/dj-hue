@@ -446,8 +446,8 @@ def pattern_selector_input(pattern_engine: PatternEngine, keyboard: "KeyboardLis
                 try:
                     idx = int(input_buffer) - 1
                     if pattern_engine.set_pattern_by_index(idx):
-                        pattern = pattern_engine.current_pattern
-                        print(f"\n>>> Selected: {pattern.name}")
+                        name = pattern_engine.get_current_pattern_name()
+                        print(f"\n>>> Selected: {name}")
                         return True
                     else:
                         print(f"\n[Invalid pattern number: {input_buffer}]")

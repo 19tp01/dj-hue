@@ -4,7 +4,9 @@ from dj_hue.patterns.decorator import pattern
 from dj_hue.patterns.strudel import light, stack, LightPattern
 
 
-@pattern("Sine Wave", "Sine wave with phase spread across lights", tags=["classic", "wave"])
+@pattern(
+    "Sine Wave", "Sine wave with phase spread across lights", tags=["classic", "wave"]
+)
 def sine_wave() -> LightPattern:
     """
     Sine wave with phase spread across lights.
@@ -80,8 +82,8 @@ def pulse() -> LightPattern:
         .modulate(
             wave="sine",
             frequency=1.0,
-            min_intensity=0.1,
-            max_intensity=1.0,
+            min_intensity=0.3,
+            max_intensity=0.8,
         )
         .color("red")
     )
@@ -101,6 +103,8 @@ def left_right() -> LightPattern:
         .modulate(wave="sine", frequency=0.5, min_intensity=0.1, max_intensity=1.0)
         .color("red"),
         light("right")
-        .modulate(wave="sine", frequency=0.5, min_intensity=0.1, max_intensity=1.0, phase=0.5)
+        .modulate(
+            wave="sine", frequency=0.5, min_intensity=0.1, max_intensity=1.0, phase=0.5
+        )
         .color("blue"),
     )
