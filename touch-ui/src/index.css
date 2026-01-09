@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* Prevent pull-to-refresh and overscroll on iOS */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text selection on touch */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection in inputs if needed */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}

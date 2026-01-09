@@ -13,6 +13,7 @@ dependencies = [
     "mido>=1.3.0", # MIDI message parsing
     "python-rtmidi>=1.5.0", # MIDI port access
     "watchdog>=6.0.0",
+    "aiohttp>=3.9.0", # WebSocket server for touch control
 ]
 
 [project.optional-dependencies]
@@ -27,6 +28,7 @@ dj-hue = "dj_hue.cli.midi_pattern_mode:main"
 dj-hue-midi = "dj_hue.cli.midi_hue:main"
 dj-hue-link = "dj_hue.cli.link_hue:main"
 dj-hue-discover = "dj_hue.cli.discover:main"
+dj-hue-touch = "dj_hue.touch.server:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

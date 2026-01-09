@@ -15,6 +15,9 @@ uv sync
 # Run main app (MIDI clock mode - recommended)
 uv run dj-hue
 
+# Touch controller (iPad/browser control)
+uv run dj-hue-touch  # Serves touch UI on :8080, proxies to DJ-Hue
+
 # Alternative entry points
 uv run dj-hue-midi   # Original MIDI mode without pattern engine
 uv run dj-hue-link   # Ableton Link mode
@@ -32,6 +35,10 @@ uv run mypy src/     # Type check
 MIDI Clock (Ableton) → BeatClock → PatternEngine → RGB Colors → Hue Entertainment API
      24 ticks/beat                    ↑                              50 Hz streaming
                               Strudel Patterns
+                                      ↑
+                              Control Server (:9876)
+                                      ↑
+                              Touch Server (:8080) ← iPad/Browser
 ```
 
 ### Key Components
@@ -47,6 +54,8 @@ MIDI Clock (Ableton) → BeatClock → PatternEngine → RGB Colors → Hue Ente
 **Pattern Decorator** (`src/dj_hue/patterns/decorator.py`): Auto-discovery system. Patterns use `@pattern("Name", "description", tags=[...])` decorator for registration.
 
 **Pattern Loader** (`src/dj_hue/patterns/loader.py`): Scans `patterns/` directory for `.py` files with `@pattern` decorators. Supports hot-reload via watchdog.
+
+**Touch Controller** (`src/dj_hue/control/` and `src/dj_hue/touch/`): WebSocket-based remote control for iPad/browser. Control server runs inside DJ-Hue on :9876, touch server is separate process on :8080 serving React UI.
 
 ### Pattern Files Location
 
@@ -97,7 +106,8 @@ cat(p1, p2)               # Sequence patterns (each gets one cycle)
 
 ## Documentation
 
-See `docs/strudel-system.md` for comprehensive pattern system documentation including timing reference, all transforms, and examples.
+- `docs/strudel-system.md` - Comprehensive pattern system documentation including timing reference, all transforms, and examples
+- `docs/touch-controller.md` - Touch controller architecture, WebSocket protocol, and usage guide
 
 ## Maintenance
 

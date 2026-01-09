@@ -21,6 +21,7 @@ from typing import Optional
 import mido
 
 from dj_hue.patterns import PatternEngine, LightSetup, LightGroup, QuickAction
+from dj_hue.control.server import ControlServer
 
 
 # Render thread runs at 50 Hz to match Zigbee transmission rate
@@ -861,6 +862,14 @@ def main():
             midi_out = mido.open_output(port_name + " Out", virtual=True)
             print(f"[MIDI] Output port: {port_name} Out (virtual)")
 
+        # Start control server for touch UI
+        control_server = ControlServer(
+            pattern_engine=pattern_engine,
+            engine_state=engine_state,
+            midi_out=midi_out,
+        )
+        control_thread = control_server.start_in_thread()
+
         with mido.open_input(port_name, virtual=True) as port:
             tick_count = 0
             beat_count = 1  # 1-indexed: beat 1 is the first beat
@@ -1130,6 +1139,12 @@ def main():
         engine_state.running = False
         keyboard.stop()
         render_thread.join(timeout=1.0)
+        # Stop control server
+        try:
+            control_server.stop()
+            control_thread.join(timeout=1.0)
+        except Exception:
+            pass
         # Close MIDI output port
         try:
             midi_out.close()

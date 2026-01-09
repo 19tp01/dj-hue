@@ -18,6 +18,7 @@ DJ-Hue is a beat-synchronized lighting control system for Philips Hue lights, de
 | Document | Description |
 |----------|-------------|
 | [Strudel System](./strudel-system.md) | Comprehensive pattern system docs: architecture, philosophy, original Strudel comparison |
+| [Touch Controller](./touch-controller.md) | iPad/browser control: WebSocket protocol, architecture, low-latency USB setup |
 | [Light Groups](./groups.md) | LightGroup, LightSetup, LightContext definitions |
 | [Scene System](./scenes.md) | Scenes, SceneBank, transitions, manual control |
 | [Hot-Reload](./hot-reload.md) | File watching, pattern loading, live updates |
@@ -110,16 +111,21 @@ strobe_build = cat(
 - [x] Hot-reload with watchdog (`src/dj_hue/patterns/loader.py`)
 - [x] MIDI clock integration (`midi_pattern_mode.py`)
 - [x] Audio-based mode (`pattern_mode.py`)
+- [x] **Touch controller** (`src/dj_hue/control/`, `src/dj_hue/touch/`, `touch-ui/`)
+  - [x] WebSocket control server (pattern/palette selection, transport, quick actions)
+  - [x] Touch server with WebSocket proxy
+  - [x] React + Tailwind v4 touch-optimized UI
+  - [x] Low-latency USB support via pymobiledevice3
 - [ ] GUI (future phase)
 
 ## Entry Points
 
 | Command | Description |
 |---------|-------------|
-| `dj-hue-midi-patterns` | **Recommended** - MIDI clock mode with PatternEngine |
-| `dj-hue-patterns` | Audio-based mode with PatternEngine |
+| `dj-hue` | **Recommended** - MIDI clock mode with PatternEngine |
+| `dj-hue-touch` | Touch server for iPad/browser control (serves UI on :8080) |
 | `dj-hue-midi` | Original MIDI clock mode (without PatternEngine) |
-| `dj-hue` | Original audio-reactive mode |
+| `dj-hue-link` | Ableton Link mode |
 
 ## Keyboard Controls (Pattern Modes)
 

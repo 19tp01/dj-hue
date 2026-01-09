@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/controls.tsx","./src/components/palettegrid.tsx","./src/components/patterngrid.tsx","./src/components/statusbar.tsx","./src/hooks/usewebsocket.ts"],"version":"5.6.3"}
