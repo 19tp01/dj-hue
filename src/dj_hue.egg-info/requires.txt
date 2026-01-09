@@ -6,6 +6,8 @@ aalink>=0.0.7
 mido>=1.3.0
 python-rtmidi>=1.5.0
 watchdog>=6.0.0
+aiohttp>=3.9.0
+pymobiledevice3>=7.0.0
 
 [dev]
 pytest>=7.0

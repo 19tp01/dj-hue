@@ -303,13 +303,40 @@ def render_loop(
     last_report = time.time()
     last_frame_end = time.time()
 
+    # Diagnostic tracking
+    send_errors = 0
+    long_frames = 0
+    last_light_state = None  # Track (r,g,b) of light 0 for state change detection
+    state_stuck_start = None  # When current state started
+    last_beat_pos = 0.0
+    beat_stuck_count = 0
+    LOG_DIAGNOSTICS = os.environ.get("DJ_HUE_DEBUG", "").lower() in ("1", "true", "yes")
+
     while engine_state.running:
         frame_start = time.time()
+
+        # Detect if previous frame took too long (gap > 50ms suggests something stalled)
+        frame_gap = frame_start - last_frame_end
+        if frame_gap > 0.05 and frame_count > 0:  # > 50ms gap
+            long_frames += 1
+            if LOG_DIAGNOSTICS:
+                print(f"[RENDER] WARNING: {frame_gap*1000:.0f}ms gap between frames!")
 
         # Get beat state
         with engine_state.lock:
             beat_pos = engine_state.beat_position
             bpm = engine_state.bpm
+
+        # Check if beat position is stuck (not advancing)
+        if beat_pos == last_beat_pos:
+            beat_stuck_count += 1
+            if beat_stuck_count == 50 and LOG_DIAGNOSTICS:  # ~1 second at 50Hz
+                print(f"[RENDER] WARNING: beat_position stuck at {beat_pos:.3f} for 50+ frames!")
+        else:
+            if beat_stuck_count >= 50 and LOG_DIAGNOSTICS:
+                print(f"[RENDER] beat_position unstuck, was stuck for {beat_stuck_count} frames")
+            beat_stuck_count = 0
+            last_beat_pos = beat_pos
 
         # Update pattern engine with MIDI clock position
         pattern_engine.beat_clock.beat_position = beat_pos
@@ -327,6 +354,19 @@ def render_loop(
             else:
                 light_colors.append((0.0, 0.0, 0.0))
 
+        # Track state changes for diagnostics
+        current_light_state = light_colors[0] if light_colors else (0, 0, 0)
+        if current_light_state != last_light_state:
+            if LOG_DIAGNOSTICS and state_stuck_start is not None:
+                stuck_duration = frame_start - state_stuck_start
+                is_on = current_light_state[0] > 0.01 or current_light_state[1] > 0.01 or current_light_state[2] > 0.01
+                was_on = last_light_state and (last_light_state[0] > 0.01 or last_light_state[1] > 0.01 or last_light_state[2] > 0.01)
+                transition = f"{'ON' if was_on else 'OFF'}->{'ON' if is_on else 'OFF'}"
+                # Log ALL state changes to see if we're missing some
+                print(f"[RENDER] {stuck_duration*1000:6.1f}ms @ beat {beat_pos:.4f} ({transition})")
+            state_stuck_start = frame_start
+            last_light_state = current_light_state
+
         # Send ALL lights in a single batched message for synchronized updates
         all_channels_data = b""
         for our_idx, (r, g, b) in enumerate(light_colors):
@@ -335,17 +375,27 @@ def render_loop(
             all_channels_data += struct.pack(">B", api_channel) + struct.pack(">HHH", r16, g16, b16)
         message = header + all_channels_data
         try:
+            send_start = time.time()
             dtls_socket.send(message)
-        except Exception:
-            pass  # Suppress errors to keep UI clean
+            send_elapsed = time.time() - send_start
+            if send_elapsed > 0.05 and LOG_DIAGNOSTICS:  # > 50ms send time
+                print(f"[RENDER] SLOW SEND: {send_elapsed*1000:.0f}ms")
+        except Exception as e:
+            send_errors += 1
+            if LOG_DIAGNOSTICS:
+                print(f"[RENDER] DTLS send error #{send_errors}: {e}")
         streaming_service._last_message = message
 
         frame_count += 1
 
-        # Frame counting (for diagnostics if needed)
+        # Periodic stats report
         now = time.time()
         if now - last_report >= 5.0:
+            if LOG_DIAGNOSTICS or send_errors > 0 or long_frames > 0:
+                print(f"[RENDER] 5s stats: {frame_count} frames, {send_errors} errs, {long_frames} long, beat={beat_pos:.2f}")
             frame_count = 0
+            send_errors = 0
+            long_frames = 0
             last_report = now
 
         # Precise timing
@@ -353,6 +403,8 @@ def render_loop(
         sleep_time = RENDER_INTERVAL - elapsed
         if sleep_time > 0:
             time.sleep(sleep_time)
+        elif LOG_DIAGNOSTICS and elapsed > RENDER_INTERVAL * 1.5:
+            print(f"[RENDER] Frame overrun: {elapsed*1000:.1f}ms (target {RENDER_INTERVAL*1000:.1f}ms)")
 
         last_frame_end = time.time()
 

@@ -20,7 +20,7 @@ class TouchServer:
 
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "::",  # Listen on all interfaces (IPv4 and IPv6)
         port: int = TOUCH_SERVER_PORT,
         djhue_host: str = "localhost",
         djhue_port: int = DJHUE_CONTROL_PORT,
@@ -174,8 +174,8 @@ def main():
     )
     parser.add_argument(
         "--host",
-        default="0.0.0.0",
-        help="Host to bind to (default: 0.0.0.0)",
+        default="::",
+        help="Host to bind to (default: :: for IPv4+IPv6)",
     )
     parser.add_argument(
         "--port",

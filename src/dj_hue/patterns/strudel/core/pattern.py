@@ -283,36 +283,130 @@ class LightPattern:
 
         return LightPattern(query_rev)
 
+    def pick(
+        self,
+        min_n: int | float = 1,
+        max_n: int | float | None = None,
+        seed: int | None = None,
+    ) -> LightPattern:
+        """
+        Randomly pick N lights from each event's group.
+
+        For each event that targets a group (like "all"), randomly selects
+        between min_n and max_n lights. Deterministic per event timing.
+
+        Args:
+            min_n: Minimum lights to pick. Integer for absolute count, float 0.0-1.0 for percentage.
+            max_n: Maximum lights to pick (default same as min_n). Same format as min_n.
+            seed: Random seed for reproducibility
+
+        Example:
+            # 1-2 random lights pop per beat
+            light("all all all all").pick(1, 2).envelope(...)
+
+            # Exactly 3 random lights per event
+            light("all all").pick(3)
+
+            # 20-50% of lights per event
+            light("all all all all").pick(0.2, 0.5)
+
+            # About half the lights
+            light("all").pick(0.5)
+        """
+        if max_n is None:
+            max_n = min_n
+
+        def resolve_count(value: int | float, total: int) -> int:
+            """Convert percentage (0.0-1.0) or absolute count to int."""
+            if isinstance(value, float) and 0.0 <= value <= 1.0:
+                return max(1, round(value * total))
+            return int(value)
+
+        def query_pick(span: TimeSpan, ctx: LightContext) -> list[LightHap]:
+            haps = self._query(span, ctx)
+            result = []
+
+            for hap in haps:
+                # If already targeting a specific light, keep it
+                if hap.value.light_id is not None:
+                    result.append(hap)
+                    continue
+
+                # Get lights from group
+                if hap.value.group:
+                    lights = ctx.resolve_group(hap.value.group)
+                else:
+                    lights = list(range(ctx.num_lights))
+
+                if not lights:
+                    continue
+
+                # Resolve min/max based on group size
+                actual_min = resolve_count(min_n, len(lights))
+                actual_max = resolve_count(max_n, len(lights))
+
+                # Deterministic random based on event timing
+                event_time = hap.whole_or_part().start
+                event_seed = (seed if seed is not None else 0) + hash(event_time)
+                rng = random.Random(event_seed)
+
+                # Pick how many lights (clamped to available)
+                n = rng.randint(actual_min, min(actual_max, len(lights)))
+                n = max(1, min(n, len(lights)))
+
+                # Randomly select n lights
+                selected = rng.sample(lights, n)
+
+                # Create a hap for each selected light
+                for light_id in selected:
+                    new_value = LightValue(
+                        light_id=light_id,
+                        group=None,
+                        color=hap.value.color,
+                        intensity=hap.value.intensity,
+                        envelope=hap.value.envelope,
+                        modulator=hap.value.modulator,
+                    )
+                    result.append(LightHap(
+                        whole=hap.whole,
+                        part=hap.part,
+                        value=new_value,
+                    ))
+
+            return result
+
+        return LightPattern(query_pick)
+
     def autonomous(
         self,
-        min_on: int = 1,
-        max_on: int = 4,
-        min_off: int = 1,
-        max_off: int = 2,
+        min_freq: float = 1.0,
+        max_freq: float = 4.0,
+        duty: float = 0.5,
         colors: list[str] | None = None,
         seed: int | None = None,
     ) -> LightPattern:
         """
-        Make each light behave autonomously with random on/off timing.
+        Make each light behave autonomously with random frequency blinking.
 
-        Each light independently turns on and off at beat-quantized intervals.
+        Each light independently blinks at a random frequency within the given range.
         The timing is pseudo-random but deterministic (same seed = same pattern).
-        Lights turn on/off instantly (no fading).
 
         Args:
-            min_on: Minimum beats to stay on (default 1)
-            max_on: Maximum beats to stay on (default 4)
-            min_off: Minimum beats to stay off (default 1)
-            max_off: Maximum beats to stay off (default 2)
-            colors: Optional list of color names to randomly choose from per event
+            min_freq: Minimum blinks per cycle/bar (default 1.0)
+            max_freq: Maximum blinks per cycle/bar (default 4.0)
+            duty: Duty cycle - fraction of time "on" (0.0-1.0, default 0.5)
+            colors: Optional list of color names to randomly choose from per blink
             seed: Random seed for reproducibility (default: uses light_id)
 
         Example:
-            # Each light randomly on 1-4 beats, off 1-2 beats
-            light("all").autonomous(min_on=1, max_on=4, min_off=1, max_off=2)
+            # Each light blinks 1-4 times per bar
+            light("all").autonomous(min_freq=1, max_freq=4)
 
-            # With random colors from a palette
-            light("all").autonomous(min_on=2, max_on=6, colors=["yellow", "orange", "amber"])
+            # Fast blinking 4-8 times per bar with short on-time
+            light("all").autonomous(min_freq=4, max_freq=8, duty=0.3)
+
+            # Slow ambient with random colors, mostly on
+            light("all").autonomous(min_freq=0.5, max_freq=2, duty=0.8, colors=["red", "orange"])
         """
         # Pre-resolve colors if provided
         resolved_colors = None
@@ -323,15 +417,13 @@ class LightPattern:
             haps = self._query(span, ctx)
             result = []
 
-            # Group haps by light_id to process each light independently
-            # First, resolve any group references to individual lights
+            # Resolve any group references to individual lights
             resolved_haps: dict[int, LightValue] = {}
             for hap in haps:
                 if hap.value.light_id is not None:
                     resolved_haps[hap.value.light_id] = hap.value
                 elif hap.value.group:
                     for light_id in ctx.resolve_group(hap.value.group):
-                        # Create a value for this specific light
                         resolved_haps[light_id] = LightValue(
                             light_id=light_id,
                             group=None,
@@ -341,72 +433,63 @@ class LightPattern:
                             modulator=hap.value.modulator,
                         )
 
-            # For each light, generate its autonomous on/off pattern
-            # We need to look back far enough to know current state
-            lookback_beats = (max_on + max_off) * 4  # Conservative lookback
-            cycle_beats = int(ctx.cycle_beats)
-
+            # For each light, generate its autonomous blinking pattern
             for light_id, base_value in resolved_haps.items():
                 # Each light gets its own RNG seeded by light_id
                 light_seed = (seed if seed is not None else 0) + light_id * 1000
                 rng = random.Random(light_seed)
 
-                # Generate pattern from well before the query span
-                # Start from a deterministic point (beat 0 of some early cycle)
-                start_beat = max(0, int(float(span.start) * cycle_beats) - lookback_beats)
-                end_beat = int(float(span.end) * cycle_beats) + cycle_beats
+                # Pick a random frequency for this light
+                freq = rng.uniform(min_freq, max_freq)
+                period = Fraction(1) / Fraction(freq).limit_denominator(1000)
 
-                # Reset RNG to start_beat state by advancing from 0
-                rng = random.Random(light_seed)
-                current_beat = 0
+                # Random phase offset (0 to 1 period)
+                phase = Fraction(rng.random()).limit_denominator(1000) * period
 
-                # Fast-forward RNG state to start_beat
-                while current_beat < start_beat:
-                    is_on = rng.random() < 0.5  # Initial state
-                    if is_on:
-                        duration = rng.randint(min_on, max_on)
+                # Calculate on/off durations from duty cycle
+                on_duration = period * Fraction(duty).limit_denominator(100)
+                off_duration = period - on_duration
+
+                # Generate events covering the query span
+                # Start from before the span to catch events that overlap
+                start_cycle = int(span.start) - 1
+                end_cycle = int(span.end) + 2
+
+                # Generate blinks from start_cycle
+                current_time = Fraction(start_cycle) + phase
+                blink_index = 0
+
+                while current_time < span.end + period:
+                    # ON period
+                    on_start = current_time
+                    on_end = current_time + on_duration
+                    event_span = TimeSpan(on_start, on_end)
+
+                    # Check if this event overlaps with query span
+                    intersection = event_span.intersection(span)
+                    if intersection:
+                        # Pick color for this blink (deterministic per blink)
                         if resolved_colors:
-                            rng.choice(resolved_colors)  # Consume RNG state
-                    else:
-                        duration = rng.randint(min_off, max_off)
-                    current_beat += duration
-
-                # Now generate events in the query range
-                # Re-seed and regenerate to get proper state
-                rng = random.Random(light_seed)
-                current_beat = 0
-                is_on = rng.random() < 0.5  # Initial state at beat 0
-
-                while current_beat < end_beat:
-                    if is_on:
-                        duration = rng.randint(min_on, max_on)
-
-                        # Pick a random color if palette provided
-                        if resolved_colors:
-                            event_color = rng.choice(resolved_colors)
+                            # Use blink index for deterministic color selection
+                            color_rng = random.Random(light_seed + blink_index)
+                            event_color = color_rng.choice(resolved_colors)
                             event_value = base_value.with_color(event_color)
                         else:
                             event_value = base_value
 
-                        # This is an ON period - create an event
-                        event_start_cycle = Fraction(current_beat, cycle_beats)
-                        event_end_cycle = Fraction(current_beat + duration, cycle_beats)
-                        event_span = TimeSpan(event_start_cycle, event_end_cycle)
+                        result.append(LightHap(
+                            whole=event_span,
+                            part=intersection,
+                            value=event_value,
+                        ))
 
-                        # Check if this event overlaps with query span
-                        intersection = event_span.intersection(span)
-                        if intersection:
-                            result.append(LightHap(
-                                whole=event_span,
-                                part=intersection,
-                                value=event_value,
-                            ))
-                    else:
-                        duration = rng.randint(min_off, max_off)
-                        # OFF period - no event generated
+                    # Move to next blink
+                    current_time += period
+                    blink_index += 1
 
-                    current_beat += duration
-                    is_on = not is_on  # Toggle state
+                    # Safety: don't generate too many events
+                    if blink_index > 1000:
+                        break
 
             return result
 

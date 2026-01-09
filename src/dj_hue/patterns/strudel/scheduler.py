@@ -174,8 +174,11 @@ class PatternScheduler:
         cycle_position = Fraction(beat_position) / Fraction(self.cycle_beats)
         current_time = float(cycle_position)
 
-        # Query a small window around current time
-        query_margin = Fraction(1, 100)
+        # Query a window around current time
+        # Margin needs to be large enough to catch fast events at 50Hz render rate
+        # At 120 BPM, 1 cycle = 2 sec, 50Hz = 20ms/frame = 0.01 cycles/frame
+        # Use 0.02 margin (0.04 total window) for safety with fast patterns
+        query_margin = Fraction(1, 50)
         query_start = max(Fraction(0), cycle_position - query_margin)
         query_end = cycle_position + query_margin
         query_span = TimeSpan(query_start, query_end)

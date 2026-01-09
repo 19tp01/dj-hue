@@ -13,13 +13,14 @@ def alternating() -> LightPattern:
     )
 
 
-@pattern("Random Pop", "Random lights pop on each beat", tags=["energy"], palette="golden")
+@pattern(
+    "Random Pop", "Random lights pop on each beat", tags=["energy"], palette="golden"
+)
 def random_pop() -> LightPattern:
-    """Random lights pop on each beat with quick fade."""
+    """1-2 random lights pop on each beat with quick fade."""
     return (
         light("all all all all")
-        .seq()
-        .shuffle()
+        .pick(0.5)
         .envelope(attack=0.01, fade=0.2)
         .color(flash="white", fade=palette(0))
     )

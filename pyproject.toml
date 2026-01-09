@@ -14,6 +14,7 @@ dependencies = [
     "python-rtmidi>=1.5.0", # MIDI port access
     "watchdog>=6.0.0",
     "aiohttp>=3.9.0", # WebSocket server for touch control
+    "pymobiledevice3>=7.0.0", # USB tunnel for iPad low-latency connection
 ]
 
 [project.optional-dependencies]

@@ -1,4 +1,6 @@
 [console_scripts]
 dj-hue = dj_hue.cli.midi_pattern_mode:main
+dj-hue-discover = dj_hue.cli.discover:main
 dj-hue-link = dj_hue.cli.link_hue:main
 dj-hue-midi = dj_hue.cli.midi_hue:main
+dj-hue-touch = dj_hue.touch.server:main

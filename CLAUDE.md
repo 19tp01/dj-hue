@@ -8,6 +8,8 @@ DJ-Hue is a beat-synchronized lighting control system for Philips Hue lights, de
 
 ## Commands
 
+**IMPORTANT**: Always use `uv run` to execute Python commands in this project. Never use system Python directly.
+
 ```bash
 # Install dependencies
 uv sync

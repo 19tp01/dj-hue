@@ -5,7 +5,10 @@ from dj_hue.patterns.strudel import light, stack, LightPattern, palette
 
 
 @pattern(
-    "Sine Wave", "Sine wave with phase spread across lights", tags=["classic", "wave"], palette="fire"
+    "Sine Wave",
+    "Sine wave with phase spread across lights",
+    tags=["classic", "wave"],
+    palette="fire",
 )
 def sine_wave() -> LightPattern:
     """
@@ -26,7 +29,12 @@ def sine_wave() -> LightPattern:
     )
 
 
-@pattern("Slow Wave", "Slow ambient wave", tags=["classic", "wave", "ambient"], palette="warm")
+@pattern(
+    "Slow Wave",
+    "Slow ambient wave",
+    tags=["classic", "wave", "ambient"],
+    palette="warm",
+)
 def slow_wave() -> LightPattern:
     """Slow ambient wave - gentle pulsing over 4 beats."""
     return (
@@ -58,7 +66,12 @@ def classic_chase() -> LightPattern:
     )
 
 
-@pattern("Fast Chase", "Fast chase with cool colors", tags=["classic", "chase"], palette="cool")
+@pattern(
+    "Fast Chase",
+    "Fast chase with cool colors",
+    tags=["classic", "chase"],
+    palette="cool",
+)
 def fast_chase_classic() -> LightPattern:
     """Fast chase pattern with cool colors."""
     return (
@@ -81,7 +94,7 @@ def pulse() -> LightPattern:
         light("all")
         .modulate(
             wave="sine",
-            frequency=1.0,
+            frequency=4,
             min_intensity=0.3,
             max_intensity=0.8,
         )
@@ -95,7 +108,12 @@ def strobe() -> LightPattern:
     return light("all ~").fast(8).color("white")
 
 
-@pattern("Left Right", "Left/right alternating with complementary colors", tags=["classic"], palette="red_cyan")
+@pattern(
+    "Left Right",
+    "Left/right alternating with complementary colors",
+    tags=["classic"],
+    palette="red_cyan",
+)
 def left_right() -> LightPattern:
     """Left/right alternating with complementary palette colors."""
     return stack(
