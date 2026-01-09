@@ -52,11 +52,13 @@ class HueStreamer:
         username: str,
         clientkey: str,
         entertainment_area_id: str,
+        light_order: list[str] | None = None,
     ):
         self.bridge_ip = bridge_ip
         self.username = username
         self.clientkey = clientkey
         self.entertainment_area_id = entertainment_area_id
+        self.light_order = light_order or []  # List of light names/IDs in desired order
 
         self._streaming = None
         self._bridge = None
@@ -65,6 +67,7 @@ class HueStreamer:
         self._lock = threading.Lock()
         self._num_channels = 0
         self._light_groups: dict[str, list[int]] = {}  # Group name -> channel indices
+        self._channel_to_api_channel: dict[int, int] = {}  # Our index -> API channel index
 
     def start(self) -> None:
         """Start the streaming connection."""
@@ -98,22 +101,78 @@ class HueStreamer:
             )
 
         # Count total channels (some lights like OmniGlow have multiple segments)
-        self._num_channels = len(target_config.channels)
+        num_api_channels = len(target_config.channels)
 
-        # Detect groups based on shared entertainment service RIDs
-        # Multi-segment lights (like OmniGlow) have multiple channels with the same RID
-        rid_to_channels: dict[str, list[int]] = {}
-        for i, channel in enumerate(target_config.channels):
+        # Build light name/ID lookup for matching against light_order config
+        light_names = get_light_names(self.bridge_ip, self.username)
+
+        # Build list of (api_channel_index, light_name, light_rid) for ordering
+        api_channels_info = []
+        rid_to_api_channels: dict[str, list[int]] = {}
+        for api_idx, channel in enumerate(target_config.channels):
             for member in channel.members:
                 rid = member.service.rid
-                if rid not in rid_to_channels:
-                    rid_to_channels[rid] = []
-                rid_to_channels[rid].append(i)
+                name = light_names.get(rid, "Unknown")
+                api_channels_info.append((api_idx, name, rid))
+                if rid not in rid_to_api_channels:
+                    rid_to_api_channels[rid] = []
+                rid_to_api_channels[rid].append(api_idx)
+
+        # Apply light_order if configured
+        if self.light_order:
+            # Build mapping from configured order to API channels
+            ordered_api_channels = []
+            used_api_channels = set()
+
+            for order_entry in self.light_order:
+                # Find matching API channel(s) by name or ID
+                found = False
+                for api_idx, name, rid in api_channels_info:
+                    if api_idx in used_api_channels:
+                        continue
+                    if order_entry == name or order_entry == rid:
+                        ordered_api_channels.append(api_idx)
+                        used_api_channels.add(api_idx)
+                        found = True
+                        break
+
+                if not found:
+                    print(f"[HUE] Warning: light_order entry '{order_entry}' not found in entertainment area")
+
+            # Add any remaining channels not in light_order at the end
+            for api_idx, name, rid in api_channels_info:
+                if api_idx not in used_api_channels:
+                    ordered_api_channels.append(api_idx)
+                    print(f"[HUE] Warning: light '{name}' not in light_order, appending at end")
+
+            # Build our index -> API channel mapping
+            self._channel_to_api_channel = {
+                our_idx: api_idx for our_idx, api_idx in enumerate(ordered_api_channels)
+            }
+            self._num_channels = len(ordered_api_channels)
+            print(f"[HUE] Applied custom light_order: {len(self.light_order)} lights configured")
+        else:
+            # Default: use API order directly
+            self._channel_to_api_channel = {i: i for i in range(num_api_channels)}
+            self._num_channels = num_api_channels
+
+        # Now build groups using OUR indices (after reordering)
+        # First, map RIDs to our indices
+        rid_to_our_channels: dict[str, list[int]] = {}
+        for our_idx in range(self._num_channels):
+            api_idx = self._channel_to_api_channel[our_idx]
+            # Find RID for this API channel
+            for a_idx, name, rid in api_channels_info:
+                if a_idx == api_idx:
+                    if rid not in rid_to_our_channels:
+                        rid_to_our_channels[rid] = []
+                    rid_to_our_channels[rid].append(our_idx)
+                    break
 
         # Build groups: "strip" for multi-segment lights, "lamps" for singles
         strip_channels = []
         lamp_channels = []
-        for rid, channels in rid_to_channels.items():
+        for rid, channels in rid_to_our_channels.items():
             if len(channels) > 1:
                 strip_channels.extend(channels)
             else:
@@ -167,6 +226,11 @@ class HueStreamer:
         """Get detected light groups (strip, lamps, etc.)."""
         return self._light_groups
 
+    @property
+    def channel_mapping(self) -> dict[int, int]:
+        """Get our channel index -> API channel index mapping."""
+        return self._channel_to_api_channel
+
 
 class EngineState:
     """Thread-safe shared state between MIDI and render threads."""
@@ -196,11 +260,19 @@ def render_loop(
     streaming,  # Direct Streaming object from hue-entertainment-pykit
     pattern_engine: PatternEngine,
     num_lights: int,
+    channel_mapping: dict[int, int] | None = None,
 ):
     """Dedicated thread for smooth Hue updates at fixed rate.
 
     Sends ALL lights in a SINGLE batched DTLS message for minimal latency.
+
+    Args:
+        channel_mapping: Maps our index (0..N) -> API channel index.
+                        If None, assumes identity mapping.
     """
+    if channel_mapping is None:
+        channel_mapping = {i: i for i in range(num_lights)}
+
     print(f"[RENDER] Started at {RENDER_HZ} Hz")
 
     # Access internals for direct socket access
@@ -256,9 +328,10 @@ def render_loop(
 
         # Send ALL lights in a single batched message for synchronized updates
         all_channels_data = b""
-        for channel_id, (r, g, b) in enumerate(light_colors):
+        for our_idx, (r, g, b) in enumerate(light_colors):
+            api_channel = channel_mapping.get(our_idx, our_idx)
             r16, g16, b16 = rgb_to_rgb16(r, g, b)
-            all_channels_data += struct.pack(">B", channel_id) + struct.pack(">HHH", r16, g16, b16)
+            all_channels_data += struct.pack(">B", api_channel) + struct.pack(">HHH", r16, g16, b16)
         message = header + all_channels_data
         try:
             dtls_socket.send(message)
@@ -298,6 +371,28 @@ def load_config():
         config = yaml.safe_load(f)
 
     return config.get("hue", {})
+
+
+def get_light_names(bridge_ip: str, username: str) -> dict[str, str]:
+    """Fetch light ID -> name mapping from bridge."""
+    import requests
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    url = f"https://{bridge_ip}/clip/v2/resource/light"
+    headers = {"hue-application-key": username}
+
+    try:
+        response = requests.get(url, headers=headers, verify=False, timeout=5)
+        data = response.json()
+
+        return {
+            item["id"]: item.get("metadata", {}).get("name", "Unknown")
+            for item in data.get("data", [])
+        }
+    except Exception as e:
+        print(f"[HUE] Warning: Could not fetch light names: {e}")
+        return {}
 
 
 class KeyboardListener:
@@ -664,11 +759,13 @@ def main():
 
     # Load config and start Hue
     hue_config = load_config()
+    light_order = hue_config.get("light_order", [])
     hue = HueStreamer(
         bridge_ip=hue_config["bridge_ip"],
         username=hue_config["username"],
         clientkey=hue_config["clientkey"],
         entertainment_area_id=hue_config["entertainment_area_id"],
+        light_order=light_order,
     )
     hue.start()
 
@@ -708,7 +805,7 @@ def main():
     # Start render thread
     render_thread = threading.Thread(
         target=render_loop,
-        args=(engine_state, hue._streaming, pattern_engine, num_lights),
+        args=(engine_state, hue._streaming, pattern_engine, num_lights, hue.channel_mapping),
         daemon=True,
     )
     render_thread.start()
