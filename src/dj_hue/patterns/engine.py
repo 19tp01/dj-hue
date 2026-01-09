@@ -503,6 +503,11 @@ class PatternEngine:
             return "None"
         return self._pattern_names[self._current_pattern_index]
 
+    def get_current_pattern_description(self) -> str:
+        """Get the description of the current pattern."""
+        name = self.get_current_pattern_name()
+        return self._pattern_descriptions.get(name, "")
+
     def get_status(self) -> dict:
         """Get current engine status for display."""
         current_name = self.get_current_pattern_name()

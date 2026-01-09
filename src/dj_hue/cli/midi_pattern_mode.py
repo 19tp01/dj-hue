@@ -477,6 +477,9 @@ def get_pattern_display_name(pattern_engine: PatternEngine, name: str) -> str:
 def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: int, message: str = ""):
     """Draw the static interface."""
     current_name = pattern_engine.get_current_pattern_name()
+    current_desc = pattern_engine.get_current_pattern_description()
+    current_palette = pattern_engine.get_active_palette_name() or "Default"
+    override = pattern_engine.get_palette_override()
 
     # Build the interface
     lines = []
@@ -485,6 +488,13 @@ def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: in
 
     # Current pattern (highlighted)
     lines.append(f"{BOLD}Pattern:{RESET} {current_name}")
+    if current_desc:
+        lines.append(f"  {DIM}{current_desc}{RESET}")
+
+    # Current palette with ANSI preview
+    palette_indicator = " (override)" if override else ""
+    swatches = palette_swatches(current_palette) if current_palette != "Default" else ""
+    lines.append(f"{BOLD}Palette:{RESET} {current_palette}{palette_indicator} {swatches}")
     lines.append("")
 
     # Pattern list (first 9)
@@ -520,6 +530,7 @@ def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: in
 def draw_palette_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: int, message: str = ""):
     """Draw the palette selection interface."""
     current_pattern = pattern_engine.get_current_pattern_name()
+    current_desc = pattern_engine.get_current_pattern_description()
     current_palette = pattern_engine.get_active_palette_name() or "Default"
     palettes = pattern_engine.get_available_palettes()
     override = pattern_engine.get_palette_override()
@@ -528,8 +539,13 @@ def draw_palette_interface(pattern_engine: PatternEngine, bpm: float, bar: int, 
     lines.append(f"{BOLD}DJ-HUE{RESET} │ {bpm:.0f} BPM │ Bar {bar} Beat {beat}")
     lines.append("─" * 50)
 
-    # Current pattern and palette
-    lines.append(f"{BOLD}Pattern:{RESET} {current_pattern} │ {BOLD}Palette:{RESET} {current_palette}")
+    # Current pattern and palette with ANSI preview
+    palette_indicator = " (override)" if override else ""
+    swatches = palette_swatches(current_palette) if current_palette != "Default" else ""
+    lines.append(f"{BOLD}Pattern:{RESET} {current_pattern}")
+    if current_desc:
+        lines.append(f"  {DIM}{current_desc}{RESET}")
+    lines.append(f"{BOLD}Palette:{RESET} {current_palette}{palette_indicator} {swatches}")
     lines.append("")
 
     # Palette list with swatches
@@ -962,6 +978,14 @@ def main():
                             engine_state.beat_position = 0.0
                             engine_state.beat_count = 1
                         ui_message = "SYNC → Bar 1"
+                        redraw()
+
+                    # Period: Send MIDI note for tap tempo (for Ableton MIDI mapping)
+                    elif key == ".":
+                        # Send note C#4 (note 61) on channel 0 - MIDI map this to tap tempo
+                        midi_out.send(mido.Message("note_on", note=61, velocity=127, channel=0))
+                        midi_out.send(mido.Message("note_off", note=61, velocity=0, channel=0))
+                        ui_message = "TAP"
                         redraw()
 
                     # Blackout toggle
