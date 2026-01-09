@@ -205,13 +205,16 @@ class BeatState:
         self.flash_triggered = False
 
 
-def rgb_to_rgb16(r: float, g: float, b: float) -> tuple[int, int, int]:
-    """Convert RGB floats (0.0-1.0) to RGB16 (0-65535)."""
-    return (
-        int(max(0.0, min(1.0, r)) * 65535),
-        int(max(0.0, min(1.0, g)) * 65535),
-        int(max(0.0, min(1.0, b)) * 65535),
-    )
+def rgb_to_rgb16(r: float, g: float, b: float, gamma: float = 2.2) -> tuple[int, int, int]:
+    """Convert RGB floats (0.0-1.0) to RGB16 (0-65535) with gamma correction.
+
+    Gamma correction makes fades perceptually linear. Without it, LED fades
+    look like they rush through dark values and stall in bright values.
+    """
+    r = max(0.0, min(1.0, r)) ** gamma
+    g = max(0.0, min(1.0, g)) ** gamma
+    b = max(0.0, min(1.0, b)) ** gamma
+    return (int(r * 65535), int(g * 65535), int(b * 65535))
 
 
 def render_loop(
@@ -327,16 +330,17 @@ def render_loop(
         compute_time = (time.time() - compute_start) * 1000
         max_compute = max(max_compute, compute_time)
 
-        # Send ONE message per light (like the library does)
+        # Send ALL lights in a single batched message for synchronized updates
         send_start = time.time()
+        all_channels_data = b""
         for channel_id, (r, g, b) in enumerate(light_colors):
             r16, g16, b16 = rgb_to_rgb16(r, g, b)
-            channel_data = struct.pack(">B", channel_id) + struct.pack(">HHH", r16, g16, b16)
-            message = header + channel_data
-            try:
-                dtls_socket.send(message)
-            except Exception as e:
-                print(f"\n[RENDER] Send error: {e}")
+            all_channels_data += struct.pack(">B", channel_id) + struct.pack(">HHH", r16, g16, b16)
+        message = header + all_channels_data
+        try:
+            dtls_socket.send(message)
+        except Exception as e:
+            print(f"\n[RENDER] Send error: {e}")
         streaming_service._last_message = message  # For library's keep-alive
         send_time = (time.time() - send_start) * 1000
         max_send = max(max_send, send_time)

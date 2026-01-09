@@ -179,13 +179,16 @@ class EngineState:
         self.running = True
 
 
-def rgb_to_rgb16(r: float, g: float, b: float) -> tuple[int, int, int]:
-    """Convert RGB floats (0.0-1.0) to RGB16 (0-65535)."""
-    return (
-        int(max(0.0, min(1.0, r)) * 65535),
-        int(max(0.0, min(1.0, g)) * 65535),
-        int(max(0.0, min(1.0, b)) * 65535),
-    )
+def rgb_to_rgb16(r: float, g: float, b: float, gamma: float = 2.2) -> tuple[int, int, int]:
+    """Convert RGB floats (0.0-1.0) to RGB16 (0-65535) with gamma correction.
+
+    Gamma correction makes fades perceptually linear. Without it, LED fades
+    look like they rush through dark values and stall in bright values.
+    """
+    r = max(0.0, min(1.0, r)) ** gamma
+    g = max(0.0, min(1.0, g)) ** gamma
+    b = max(0.0, min(1.0, b)) ** gamma
+    return (int(r * 65535), int(g * 65535), int(b * 65535))
 
 
 def render_loop(
@@ -251,15 +254,16 @@ def render_loop(
             else:
                 light_colors.append((0.0, 0.0, 0.0))
 
-        # Send to lights via direct socket
+        # Send ALL lights in a single batched message for synchronized updates
+        all_channels_data = b""
         for channel_id, (r, g, b) in enumerate(light_colors):
             r16, g16, b16 = rgb_to_rgb16(r, g, b)
-            channel_data = struct.pack(">B", channel_id) + struct.pack(">HHH", r16, g16, b16)
-            message = header + channel_data
-            try:
-                dtls_socket.send(message)
-            except Exception:
-                pass  # Suppress errors to keep UI clean
+            all_channels_data += struct.pack(">B", channel_id) + struct.pack(">HHH", r16, g16, b16)
+        message = header + all_channels_data
+        try:
+            dtls_socket.send(message)
+        except Exception:
+            pass  # Suppress errors to keep UI clean
         streaming_service._last_message = message
 
         frame_count += 1

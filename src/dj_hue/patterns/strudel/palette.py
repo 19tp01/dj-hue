@@ -3,7 +3,7 @@ Color palette system for deferred color resolution.
 
 Palettes decouple color selection from pattern definition, allowing:
 - Runtime palette switching without modifying patterns
-- Selection modes: indexed, random, cycling, random-hold
+- Selection modes: indexed, random, cycling, random-hold, random-blend
 - Backwards-compatible with hardcoded colors
 
 Usage:
@@ -14,6 +14,7 @@ Usage:
     light("all").color(palette.random)          # Random per-event
     light("all").color(palette.cycle)           # Cycle through colors
     light("all").color(palette.random_hold(4))  # Random, changes every 4 beats
+    light("all").color(palette.random_blend(4, 1))  # Random with 1-beat crossfade
 """
 
 from dataclasses import dataclass
@@ -25,6 +26,8 @@ import random
 if TYPE_CHECKING:
     from .core.types import HSV
 
+from .core.envelope import interpolate_hsv
+
 
 class PaletteSelectionMode(Enum):
     """How to select colors from the palette."""
@@ -33,6 +36,7 @@ class PaletteSelectionMode(Enum):
     RANDOM = auto()  # Random per-event
     CYCLE = auto()  # Cycle sequentially through colors
     RANDOM_HOLD = auto()  # Random, held for N beats
+    RANDOM_BLEND = auto()  # Random with crossfade transition
 
 
 @dataclass(frozen=True)
@@ -53,6 +57,7 @@ class PaletteRef:
     mode: PaletteSelectionMode
     index: int = 0  # For INDEX mode
     hold_beats: float = 1.0  # For RANDOM_HOLD mode
+    blend_beats: float = 0.0  # For RANDOM_BLEND mode (fade duration)
 
     def resolve(
         self,
@@ -107,6 +112,43 @@ class PaletteRef:
                 # (except when wrapping, but that's unavoidable with small palettes)
                 shuffled_index = indices[quantized % len(indices)]
                 return palette[shuffled_index]
+            elif seed is not None:
+                rng = random.Random(seed)
+            else:
+                rng = random.Random()
+            return rng.choice(palette.colors)
+
+        elif self.mode == PaletteSelectionMode.RANDOM_BLEND:
+            # Random with crossfade: hold for (period - fade), then blend to next
+            if cycle_position is not None:
+                pos_beats = float(cycle_position) * 4
+                period = self.hold_beats
+                fade = self.blend_beats
+
+                # Which period are we in?
+                period_index = int(pos_beats / period)
+                pos_in_period = pos_beats % period
+
+                # Create shuffled sequence (same logic as random_hold)
+                shuffle_rng = random.Random(42)
+                indices = list(range(len(palette.colors)))
+                shuffle_rng.shuffle(indices)
+
+                from_idx = indices[period_index % len(indices)]
+                to_idx = indices[(period_index + 1) % len(indices)]
+
+                # Are we in hold phase or fade phase?
+                hold_duration = period - fade
+                if pos_in_period < hold_duration or fade <= 0:
+                    # Still holding (or no fade configured)
+                    return palette[from_idx]
+                else:
+                    # Fading to next color
+                    fade_progress = (pos_in_period - hold_duration) / fade
+                    from_color = palette[from_idx]
+                    to_color = palette[to_idx]
+                    return interpolate_hsv(from_color, to_color, fade_progress)
+            # Fallback for no cycle_position
             elif seed is not None:
                 rng = random.Random(seed)
             else:
@@ -192,6 +234,28 @@ class PaletteAccessor:
             palette.random_hold(0.5) # New random color every half beat
         """
         return PaletteRef(mode=PaletteSelectionMode.RANDOM_HOLD, hold_beats=beats)
+
+    def random_blend(self, period: float = 4.0, fade: float = 1.0) -> PaletteRef:
+        """
+        Create a random palette reference with crossfade transitions.
+
+        Holds a random color, then crossfades to the next random color.
+
+        Args:
+            period: Total cycle length in beats (hold + fade)
+            fade: Duration of the crossfade in beats
+
+        Examples:
+            palette.random_blend(4, 1)    # Hold 3 beats, fade 1 beat
+            palette.random_blend(8, 2)    # Hold 6 beats, fade 2 beats
+            palette.random_blend(4, 4)    # Continuous blend (always fading)
+            palette.random_blend(4, 0)    # No fade (same as random_hold)
+        """
+        return PaletteRef(
+            mode=PaletteSelectionMode.RANDOM_BLEND,
+            hold_beats=period,
+            blend_beats=min(fade, period),  # fade can't exceed period
+        )
 
 
 # Singleton instance for pattern authors
