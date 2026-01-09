@@ -126,6 +126,9 @@ class PatternEngine:
 
         # Load patterns from library and user directory
         self._load_all_patterns()
+        # Initialize palette and scheduler so the first pattern renders immediately.
+        self._update_active_palette()
+        self._rebuild_scheduler()
 
     @property
     def num_lights(self) -> int:

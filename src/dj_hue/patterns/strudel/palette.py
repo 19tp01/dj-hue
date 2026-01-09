@@ -3,16 +3,17 @@ Color palette system for deferred color resolution.
 
 Palettes decouple color selection from pattern definition, allowing:
 - Runtime palette switching without modifying patterns
-- Selection modes: indexed, random, cycling
+- Selection modes: indexed, random, cycling, random-hold
 - Backwards-compatible with hardcoded colors
 
 Usage:
     from dj_hue.patterns.strudel.palette import palette
 
     # In patterns
-    light("all").color(palette(0))       # First color
-    light("all").color(palette.random)   # Random per-event
-    light("all").color(palette.cycle)    # Cycle through colors
+    light("all").color(palette(0))              # First color
+    light("all").color(palette.random)          # Random per-event
+    light("all").color(palette.cycle)           # Cycle through colors
+    light("all").color(palette.random_hold(4))  # Random, changes every 4 beats
 """
 
 from dataclasses import dataclass
@@ -31,6 +32,7 @@ class PaletteSelectionMode(Enum):
     INDEX = auto()  # Fixed index (modulo wrap)
     RANDOM = auto()  # Random per-event
     CYCLE = auto()  # Cycle sequentially through colors
+    RANDOM_HOLD = auto()  # Random, held for N beats
 
 
 @dataclass(frozen=True)
@@ -42,13 +44,15 @@ class PaletteRef:
     from whatever palette is active at runtime.
 
     Examples:
-        palette(0)       -> PaletteRef(mode=INDEX, index=0)
-        palette.random   -> PaletteRef(mode=RANDOM)
-        palette.cycle    -> PaletteRef(mode=CYCLE)
+        palette(0)              -> PaletteRef(mode=INDEX, index=0)
+        palette.random          -> PaletteRef(mode=RANDOM)
+        palette.cycle           -> PaletteRef(mode=CYCLE)
+        palette.random_hold(4)  -> PaletteRef(mode=RANDOM_HOLD, hold_beats=4)
     """
 
     mode: PaletteSelectionMode
     index: int = 0  # For INDEX mode
+    hold_beats: float = 1.0  # For RANDOM_HOLD mode
 
     def resolve(
         self,
@@ -82,6 +86,32 @@ class PaletteRef:
 
         elif self.mode == PaletteSelectionMode.CYCLE:
             return palette[event_index]
+
+        elif self.mode == PaletteSelectionMode.RANDOM_HOLD:
+            # Random but held for N beats, guaranteed different each time
+            # Quantize cycle_position to hold_beats boundaries
+            if cycle_position is not None:
+                # cycle_position is in cycles (bars), convert to beats
+                # 1 cycle = 4 beats
+                pos_beats = float(cycle_position) * 4
+                # Floor to nearest hold_beats boundary
+                quantized = int(pos_beats / self.hold_beats)
+
+                # Create a shuffled sequence of indices (deterministic per-session)
+                # Using a fixed seed so the shuffle is consistent
+                shuffle_rng = random.Random(42)
+                indices = list(range(len(palette.colors)))
+                shuffle_rng.shuffle(indices)
+
+                # Cycle through the shuffled indices - guarantees no repeats
+                # (except when wrapping, but that's unavoidable with small palettes)
+                shuffled_index = indices[quantized % len(indices)]
+                return palette[shuffled_index]
+            elif seed is not None:
+                rng = random.Random(seed)
+            else:
+                rng = random.Random()
+            return rng.choice(palette.colors)
 
         # Fallback
         return palette[0]
@@ -128,10 +158,11 @@ class PaletteAccessor:
     Factory for creating PaletteRef instances.
 
     Usage:
-        palette(0)       # Index 0
-        palette(2)       # Index 2
-        palette.random   # Random per-event
-        palette.cycle    # Cycle through colors
+        palette(0)              # Index 0
+        palette(2)              # Index 2
+        palette.random          # Random per-event
+        palette.cycle           # Cycle through colors
+        palette.random_hold(4)  # Random, changes every 4 beats
     """
 
     def __call__(self, index: int = 0) -> PaletteRef:
@@ -147,6 +178,20 @@ class PaletteAccessor:
     def cycle(self) -> PaletteRef:
         """Create a cycling palette reference."""
         return PaletteRef(mode=PaletteSelectionMode.CYCLE)
+
+    def random_hold(self, beats: float = 1.0) -> PaletteRef:
+        """
+        Create a random palette reference that holds for N beats.
+
+        Args:
+            beats: How many beats to hold each random color (default 1.0)
+
+        Examples:
+            palette.random_hold(1)   # New random color every beat
+            palette.random_hold(4)   # New random color every bar (4 beats)
+            palette.random_hold(0.5) # New random color every half beat
+        """
+        return PaletteRef(mode=PaletteSelectionMode.RANDOM_HOLD, hold_beats=beats)
 
 
 # Singleton instance for pattern authors

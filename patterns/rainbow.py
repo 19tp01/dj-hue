@@ -1,46 +1,33 @@
 """Rainbow patterns - color cycling effects."""
 
 from dj_hue.patterns.decorator import pattern
-from dj_hue.patterns.strudel import light, cat, LightPattern
+from dj_hue.patterns.strudel import light, cat, LightPattern, palette
 
 
-@pattern("Rainbow Cycle", "Slow rainbow color cycle", tags=["rainbow", "ambient"])
+@pattern("Rainbow Cycle", "Slow rainbow color cycle", tags=["rainbow", "ambient"], palette="rainbow")
 def rainbow_cycle() -> LightPattern:
     """
     Slow rainbow cycle through all colors.
 
-    8-bar cycle through the full spectrum.
+    8-bar cycle through the full spectrum using palette colors.
     """
-    return cat(
-        light("all").color("red"),
-        light("all").color("orange"),
-        light("all").color("yellow"),
-        light("all").color("green"),
-        light("all").color("cyan"),
-        light("all").color("blue"),
-        light("all").color("purple"),
-        light("all").color("magenta"),
-    ).slow(2)
+    return (
+        cat(*[light("all") for _ in range(8)])
+        .color(palette.cycle)
+        .slow(2)
+    )
 
 
-@pattern("Rainbow Wave", "Rainbow wave across lights", tags=["rainbow"])
+@pattern("Rainbow Wave", "Rainbow wave across lights", tags=["rainbow"], palette="rainbow")
 def rainbow_wave() -> LightPattern:
     """
     Rainbow colors wave across lights with offset.
 
-    Uses cat() to cycle through rainbow colors with modulation.
+    Uses palette.cycle to cycle through rainbow colors with modulation.
     """
     return (
-        cat(
-            light("all").seq().color("red"),
-            light("all").seq().color("orange"),
-            light("all").seq().color("yellow"),
-            light("all").seq().color("green"),
-            light("all").seq().color("cyan"),
-            light("all").seq().color("blue"),
-            light("all").seq().color("purple"),
-            light("all").seq().color("magenta"),
-        )
+        cat(*[light("all").seq() for _ in range(8)])
+        .color(palette.cycle)
         .fast(4)  # 2 colors per bar
         .modulate(
             wave="sine",

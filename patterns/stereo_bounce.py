@@ -5,12 +5,12 @@ Left and right sides alternate with complementary colors.
 Creates a ping-pong effect synced to the beat.
 """
 
-from dj_hue.patterns import pattern, light, stack
+from dj_hue.patterns import pattern, light, stack, palette
 
 
-@pattern("Stereo Bounce", "Left/right alternating bounce", tags=["stereo", "bounce", "energy"])
+@pattern("Stereo Bounce", "Left/right alternating bounce", tags=["stereo", "bounce", "energy"], palette="red_cyan")
 def stereo_bounce():
-    """Left and right groups alternate with red and cyan."""
+    """Left and right groups alternate with palette complementary colors."""
     return stack(
         light("left")
         .modulate(
@@ -20,7 +20,7 @@ def stereo_bounce():
             max_intensity=1.0,
             phase=0.0,
         )
-        .color("red"),
+        .color(palette(0)),
         light("right")
         .modulate(
             wave="sine",
@@ -29,5 +29,5 @@ def stereo_bounce():
             max_intensity=1.0,
             phase=0.5,  # Half beat offset
         )
-        .color("cyan"),
+        .color(palette(1)),
     )

@@ -4,13 +4,14 @@ from dj_hue.patterns.decorator import pattern
 from dj_hue.patterns.strudel import light, LightPattern
 
 
-@pattern("Autonomous", "Each light independently on/off at random beats", tags=["autonomous"])
+@pattern("Autonomous", "Each light independently on/off at random beats", tags=["autonomous"], palette="mono_white")
 def autonomous_lights() -> LightPattern:
     """
     Each light behaves independently with random on/off timing.
 
     Lights turn on for 1-4 beats, then off for 1-2 beats.
     No fading - instant on/off at beat boundaries.
+    Keeps white for utility.
     """
     return (
         light("all")
@@ -24,13 +25,14 @@ def autonomous_lights() -> LightPattern:
     )
 
 
-@pattern("Fireflies", "Firefly-like random blinking, warm colors", tags=["autonomous", "ambient"])
+@pattern("Fireflies", "Firefly-like random blinking, warm colors", tags=["autonomous", "ambient"], palette="warm")
 def fireflies() -> LightPattern:
     """
     Firefly-like effect with warm colors.
 
     Each light blinks on for 2-6 beats, then stays off for 2-4 beats.
     Warm color scheme randomized per event.
+    Note: autonomous() uses explicit colors parameter for color selection.
     """
     return light("all").autonomous(
         min_on=2,
@@ -41,13 +43,14 @@ def fireflies() -> LightPattern:
     )
 
 
-@pattern("Rainbow Auto", "Autonomous rainbow - random colors, 2-4 beats on/off", tags=["autonomous", "rainbow"])
+@pattern("Rainbow Auto", "Autonomous rainbow - random colors, 2-4 beats on/off", tags=["autonomous", "rainbow"], palette="rainbow")
 def rainbow_autonomous() -> LightPattern:
     """
     Autonomous rainbow - each light randomly picks rainbow colors.
 
     Each light blinks on for 1-4 beats with no off time.
     Colors cycle through the full rainbow spectrum.
+    Note: autonomous() uses explicit colors parameter for color selection.
     """
     return light("all").autonomous(
         min_on=1,

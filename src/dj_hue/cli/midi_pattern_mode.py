@@ -344,6 +344,31 @@ RESET = "\033[0m"
 DIM = "\033[2m"
 
 
+def rgb_swatch(r: int, g: int, b: int) -> str:
+    """Return 2-char colored block using 24-bit ANSI."""
+    return f"\033[48;2;{r};{g};{b}m  \033[0m"
+
+
+def hsv_to_rgb_int(hsv) -> tuple[int, int, int]:
+    """Convert HSV to RGB integers (0-255)."""
+    import colorsys
+    r, g, b = colorsys.hsv_to_rgb(hsv.hue, hsv.saturation, hsv.value)
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def palette_swatches(palette_name: str) -> str:
+    """Generate color swatches for a palette."""
+    from dj_hue.patterns.strudel.palettes import get_palette
+    palette = get_palette(palette_name)
+    if not palette:
+        return ""
+    swatches = ""
+    for hsv in palette.colors:
+        r, g, b = hsv_to_rgb_int(hsv)
+        swatches += rgb_swatch(r, g, b)
+    return swatches
+
+
 def get_pattern_display_name(pattern_engine: PatternEngine, name: str) -> str:
     """Get display name for a pattern."""
     # All patterns are now Strudel LightPatterns, just return the name
@@ -380,7 +405,7 @@ def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: in
         lines.append(f"  {DIM}... +{total - 9} more (press p){RESET}")
 
     lines.append("")
-    lines.append(f"{DIM}[/] prev/next  [space] sync  [b] blackout  [f] flash  [p] patterns  [q] quit{RESET}")
+    lines.append(f"{DIM}[Tab] palettes  [/] prev/next  [b] blackout  [f] flash  [p] all  [q] quit{RESET}")
 
     # Message line
     if message:
@@ -388,6 +413,58 @@ def draw_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: in
         lines.append(f"  {message}")
 
     # Clear and draw
+    output = CURSOR_HOME + CLEAR_SCREEN
+    output += "\n".join(lines)
+    print(output, flush=True)
+
+
+def draw_palette_interface(pattern_engine: PatternEngine, bpm: float, bar: int, beat: int, message: str = ""):
+    """Draw the palette selection interface."""
+    current_pattern = pattern_engine.get_current_pattern_name()
+    current_palette = pattern_engine.get_active_palette_name() or "Default"
+    palettes = pattern_engine.get_available_palettes()
+    override = pattern_engine.get_palette_override()
+
+    lines = []
+    lines.append(f"{BOLD}DJ-HUE{RESET} │ {bpm:.0f} BPM │ Bar {bar} Beat {beat}")
+    lines.append("─" * 50)
+
+    # Current pattern and palette
+    lines.append(f"{BOLD}Pattern:{RESET} {current_pattern} │ {BOLD}Palette:{RESET} {current_palette}")
+    lines.append("")
+
+    # Palette list with swatches
+    lines.append(f"{DIM}Palettes [0-9]:{RESET}                   {DIM}(Tab for patterns){RESET}")
+
+    # Option 0: Default (clears override)
+    is_default = override is None
+    marker = "▶" if is_default else " "
+    line = f"  {marker} 0: Default (pattern's choice)"
+    if is_default:
+        line = f"{BOLD}{line}{RESET}"
+    lines.append(line)
+
+    # Palettes 1-9
+    for i, name in enumerate(palettes[:9]):
+        is_current = (name == override)
+        marker = "▶" if is_current else " "
+        swatches = palette_swatches(name)
+        line = f"  {marker} {i+1}: {name:<12} {swatches}"
+        if is_current:
+            line = f"{BOLD}  {marker} {i+1}: {name:<12}{RESET} {swatches}"
+        lines.append(line)
+
+    # More indicator
+    if len(palettes) > 9:
+        lines.append(f"  {DIM}... +{len(palettes) - 9} more (press c){RESET}")
+
+    lines.append("")
+    lines.append(f"{DIM}[Tab] patterns  [/] prev/next  [b] blackout  [f] flash  [c] all  [q] quit{RESET}")
+
+    if message:
+        lines.append("")
+        lines.append(f"  {message}")
+
     output = CURSOR_HOME + CLEAR_SCREEN
     output += "\n".join(lines)
     print(output, flush=True)
@@ -480,6 +557,101 @@ def pattern_selector_input(pattern_engine: PatternEngine, keyboard: "KeyboardLis
                 pass
 
 
+def print_palette_selector(pattern_engine: PatternEngine) -> None:
+    """Print palette selection menu with all palettes."""
+    palettes = pattern_engine.get_available_palettes()
+    override = pattern_engine.get_palette_override()
+
+    output = CURSOR_HOME + CLEAR_SCREEN
+    lines = []
+    lines.append(f"{BOLD}PALETTE SELECTOR{RESET}")
+    lines.append("─" * 50)
+    lines.append(f"{DIM}Type number + Enter, or Escape to cancel{RESET}")
+    lines.append("")
+
+    # Option 0: Default
+    is_default = override is None
+    marker = "▶" if is_default else " "
+    line = f"  {marker}  0. Default (pattern's choice)"
+    if is_default:
+        line = f"{BOLD}{line}{RESET}"
+    lines.append(line)
+
+    for i, name in enumerate(palettes):
+        is_current = (name == override)
+        marker = "▶" if is_current else " "
+        swatches = palette_swatches(name)
+        line = f"  {marker} {i+1:2d}. {name:<12} {swatches}"
+        if is_current:
+            line = f"{BOLD}  {marker} {i+1:2d}. {name:<12}{RESET} {swatches}"
+        lines.append(line)
+
+    lines.append("")
+    lines.append("─" * 50)
+    print(output + "\n".join(lines), flush=True)
+
+
+def palette_selector_input(pattern_engine: PatternEngine, keyboard: "KeyboardListener") -> bool:
+    """
+    Handle palette selector input mode.
+
+    Returns True if a palette was selected, False if cancelled.
+    """
+    print_palette_selector(pattern_engine)
+    print("Enter palette number (0 for default): ", end="", flush=True)
+
+    input_buffer = ""
+    while True:
+        key = keyboard.get_key()
+        if key is None:
+            time.sleep(0.05)
+            continue
+
+        # Escape to cancel
+        if key == "\x1b":  # Escape
+            print("\n[Cancelled]")
+            return False
+
+        # Enter to confirm
+        if key in ("\n", "\r"):
+            if input_buffer:
+                try:
+                    idx = int(input_buffer)
+                    if idx == 0:
+                        pattern_engine.set_palette(None)  # Clear override
+                        print("\n>>> Palette: Default")
+                        return True
+                    else:
+                        palettes = pattern_engine.get_available_palettes()
+                        palette_idx = idx - 1
+                        if 0 <= palette_idx < len(palettes):
+                            pattern_engine.set_palette(palettes[palette_idx])
+                            print(f"\n>>> Palette: {palettes[palette_idx]}")
+                            return True
+                        else:
+                            print(f"\n[Invalid palette number: {input_buffer}]")
+                            return False
+                except ValueError:
+                    print(f"\n[Invalid input: {input_buffer}]")
+                    return False
+            else:
+                print("\n[Cancelled]")
+                return False
+
+        # Backspace
+        if key in ("\x7f", "\b"):
+            if input_buffer:
+                input_buffer = input_buffer[:-1]
+                print("\b \b", end="", flush=True)
+            continue
+
+        # Number input
+        if key.isdigit():
+            input_buffer += key
+            print(key, end="", flush=True)
+            continue
+
+
 def main():
     """Main MIDI Clock to Hue with PatternEngine."""
     print("=" * 60)
@@ -547,6 +719,7 @@ def main():
     ui_bar = 1
     ui_beat = 1
     ui_bpm = 120.0
+    ui_mode = "pattern"  # "pattern" or "palette"
 
     def signal_handler(sig, frame):
         engine_state.running = False
@@ -579,8 +752,15 @@ def main():
             last_ui_update = 0
             pending_reset = False  # Quantized reset - triggers on next beat
 
+            # Helper to redraw based on current mode
+            def redraw():
+                if ui_mode == "pattern":
+                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                else:
+                    draw_palette_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+
             # Initial draw
-            draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+            redraw()
 
             while engine_state.running:
                 # Check for keyboard input
@@ -590,22 +770,81 @@ def main():
                         engine_state.running = False
                         break
 
-                    # Pattern selection (1-9)
-                    elif key in "123456789":
-                        idx = int(key) - 1
-                        if pattern_engine.set_pattern_by_index(idx):
-                            ui_message = ""
-                            draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                    # Tab: toggle mode
+                    elif key == "\t":
+                        ui_mode = "palette" if ui_mode == "pattern" else "pattern"
+                        ui_message = ""
+                        redraw()
 
-                    # Previous/Next pattern
+                    # Number selection (mode-dependent)
+                    elif key == "0":
+                        if ui_mode == "palette":
+                            pattern_engine.set_palette(None)  # Clear override
+                            ui_message = ""
+                            redraw()
+
+                    elif key in "123456789":
+                        if ui_mode == "pattern":
+                            # Pattern selection
+                            idx = int(key) - 1
+                            if pattern_engine.set_pattern_by_index(idx):
+                                ui_message = ""
+                                redraw()
+                        else:
+                            # Palette selection
+                            idx = int(key) - 1
+                            palettes = pattern_engine.get_available_palettes()
+                            if idx < len(palettes):
+                                pattern_engine.set_palette(palettes[idx])
+                                ui_message = ""
+                                redraw()
+
+                    # Previous/Next (mode-dependent)
                     elif key == "[":
-                        pattern_engine.prev_pattern()
+                        if ui_mode == "pattern":
+                            pattern_engine.prev_pattern()
+                        else:
+                            # Cycle through palettes (prev)
+                            palettes = pattern_engine.get_available_palettes()
+                            override = pattern_engine.get_palette_override()
+                            if override is None:
+                                # From default, go to last palette
+                                if palettes:
+                                    pattern_engine.set_palette(palettes[-1])
+                            else:
+                                try:
+                                    idx = palettes.index(override)
+                                    if idx == 0:
+                                        pattern_engine.set_palette(None)  # Back to default
+                                    else:
+                                        pattern_engine.set_palette(palettes[idx - 1])
+                                except ValueError:
+                                    pattern_engine.set_palette(None)
                         ui_message = ""
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
+
                     elif key == "]":
-                        pattern_engine.next_pattern()
+                        if ui_mode == "pattern":
+                            pattern_engine.next_pattern()
+                        else:
+                            # Cycle through palettes (next)
+                            palettes = pattern_engine.get_available_palettes()
+                            override = pattern_engine.get_palette_override()
+                            if override is None:
+                                # From default, go to first palette
+                                if palettes:
+                                    pattern_engine.set_palette(palettes[0])
+                            else:
+                                try:
+                                    idx = palettes.index(override)
+                                    if idx >= len(palettes) - 1:
+                                        pattern_engine.set_palette(None)  # Back to default
+                                    else:
+                                        pattern_engine.set_palette(palettes[idx + 1])
+                                except ValueError:
+                                    pattern_engine.set_palette(None)
                         ui_message = ""
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
 
                     # Spacebar: Send MIDI note (for Ableton MIDI mapping) and reset beat counter
                     elif key == " ":
@@ -622,25 +861,25 @@ def main():
                             engine_state.beat_position = 0.0
                             engine_state.beat_count = 1
                         ui_message = "SYNC → Bar 1"
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
 
-                    # Blackout toggle (moved to 'b')
+                    # Blackout toggle
                     elif key == "b":
                         is_blackout = pattern_engine.toggle_blackout()
                         ui_message = "BLACKOUT" if is_blackout else ""
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
 
                     # Flash
                     elif key == "f":
                         pattern_engine.trigger_quick_action(QuickAction.flash(duration_beats=0.5))
                         ui_message = "FLASH!"
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
 
                     # Reset beat position (quantized to next beat)
                     elif key == "r":
                         pending_reset = True
                         ui_message = "Reset on next beat..."
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
 
                     # Reload patterns from disk
                     elif key == "R":
@@ -649,13 +888,19 @@ def main():
                             ui_message = f"Reloaded {count} patterns"
                         except Exception as e:
                             ui_message = f"Reload error: {e}"
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
 
-                    # Pattern selector
+                    # Pattern selector (full list)
                     elif key == "p":
                         pattern_selector_input(pattern_engine, keyboard)
                         ui_message = ""
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
+
+                    # Palette selector (full list)
+                    elif key == "c":
+                        palette_selector_input(pattern_engine, keyboard)
+                        ui_message = ""
+                        redraw()
 
                 # Receive with timeout so we can check for shutdown
                 msg = port.poll()  # Non-blocking
@@ -683,7 +928,7 @@ def main():
                                 engine_state.beat_count = 1
                             ui_message = "SYNCED!"
                             last_beat_time = now
-                            draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                            redraw()
                             continue
 
                         # Calculate BPM from beat timing
@@ -699,7 +944,7 @@ def main():
                         ui_message = ""
 
                         # Redraw on each beat
-                        draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                        redraw()
 
                     # Calculate beat_position (0-indexed: beat 1 starts at 0.0)
                     beat_position = (beat_count - 1) + tick_count / TICKS_PER_BEAT
@@ -720,11 +965,11 @@ def main():
                     with engine_state.lock:
                         engine_state.beat_position = 0.0
                         engine_state.beat_count = 1
-                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                    redraw()
 
                 elif msg.type == "stop":
                     ui_message = "MIDI Stop"
-                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                    redraw()
 
                 elif msg.type == "continue":
                     tick_count = 0
@@ -736,7 +981,7 @@ def main():
                     with engine_state.lock:
                         engine_state.beat_position = 0.0
                         engine_state.beat_count = 1
-                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                    redraw()
 
                 elif msg.type == "songpos":
                     # Song position is in "MIDI beats" (16th notes), 4 per quarter note
@@ -749,7 +994,7 @@ def main():
                     with engine_state.lock:
                         engine_state.beat_count = beat_count
                         engine_state.beat_position = (beat_count - 1) + tick_count / TICKS_PER_BEAT
-                    draw_interface(pattern_engine, ui_bpm, ui_bar, ui_beat, ui_message)
+                    redraw()
 
     except Exception as e:
         print(f"\n[ERROR] {e}")

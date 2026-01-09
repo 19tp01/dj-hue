@@ -29,6 +29,8 @@ from .strudel import (
     cat,
     ceiling,
     perimeter,
+    # Palette
+    palette,
     # Scheduler
     PatternScheduler,
 )
@@ -55,6 +57,8 @@ __all__ = [
     "cat",
     "ceiling",
     "perimeter",
+    # Palette
+    "palette",
     # Scheduler
     "PatternScheduler",
     # Engine
