@@ -1,0 +1,11 @@
+name: Half Bar Sawtooth Pulse
+category: Chill
+description: Sawtooth decay from 100% to 50% every two beats
+tags: pulse
+palette: neon
+---
+(
+    light("all")
+    .modulate("saw", frequency=2.0, min_intensity=1.0, max_intensity=0.5)
+    .color(palette.random_hold(8))  # New random color other every bar
+)

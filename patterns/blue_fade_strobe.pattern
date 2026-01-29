@@ -1,0 +1,10 @@
+name: Blue Fade Strobe
+category: Upbeat
+description: 2 beats bright blue fade, 2 beats blue strobe
+tags: signature
+palette: cool
+---
+cat(
+    light("all").envelope(attack=0.02, fade=0.8, sustain=0).color(palette(0)),
+    light("all ~").fast(8).color(palette(0)),
+).fast(2)

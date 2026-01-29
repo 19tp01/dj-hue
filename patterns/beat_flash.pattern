@@ -1,0 +1,11 @@
+name: Bright Double Color Flash
+category: Buildup
+description: All lights flash on each beat
+tags: flash
+palette: ice
+---
+(
+    light("all all all all")
+    .envelope(attack=0.02, fade=0.4, sustain=0.3)
+    .color(flash="white", fade=palette(0))
+)

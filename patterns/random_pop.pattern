@@ -1,0 +1,12 @@
+name: Random Flash
+category: Buildup
+description: Random lights pop on each beat
+tags: energy
+palette: golden
+---
+(
+    light("all all all all")
+    .pick(0.2)
+    .envelope(attack=0.01, fade=0.2)
+    .color(flash="white", fade=palette(0))
+)

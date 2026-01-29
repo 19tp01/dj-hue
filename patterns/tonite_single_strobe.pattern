@@ -1,0 +1,21 @@
+name: Tonite Single Strobe
+category: Upbeat
+description: All lights breathe with a smooth bar-long sine wave in the palette color, while one randomly selected light per beat strobes rapid 16th notes - the same light holds for the entire beat
+tags: strobe, energy
+palette: synthwave
+---
+base_breathe = (
+    light("all")
+    .modulate("sine", frequency=1.0, min_intensity=0.6, max_intensity=0.8)
+    .color(palette(0))
+)
+
+single_strobe = (
+    light("all ~")            # On/off pattern (2 events)
+    .fast(16)                 # 16x speed = 16th note strobes
+    .pick(1, hold=0.25)       # Pick 1 light, hold for 1 beat
+    .envelope(attack=0.01, fade=0.05)
+    .color(palette(1))
+)
+
+stack(base_breathe, single_strobe)

@@ -1,0 +1,7 @@
+name: Warm Ember
+category: Ambient
+description: Triangle wave for softer peaks like glowing embers - very subtle warmth that pulses gently
+tags: ambient, slow
+palette: fire
+---
+light("all").modulate("triangle", frequency=0.25, min_intensity=0.25, max_intensity=0.45).color(palette.random_hold(32))

@@ -1,0 +1,187 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+/* Design System - CSS Variables */
+:root {
+  /* Typography */
+  --font-ui: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Backgrounds - layered depth */
+  --bg-void: #050508;
+  --bg-surface: #0a0a0f;
+  --bg-elevated: #12121a;
+  --bg-interactive: #1a1a25;
+  --bg-hover: #242430;
+
+  /* Cyan accent spectrum (teal-shifted for warmth) */
+  --accent-dim: #0d4f4f;
+  --accent-mid: #14b8a6;
+  --accent-bright: #22d3ee;
+  --accent-glow: #67e8f9;
+  --accent-white: #e0fffe;
+
+  /* Purple (palette selection) */
+  --purple-dim: #2d1f5c;
+  --purple-mid: #7c3aed;
+  --purple-bright: #a855f7;
+  --purple-glow: #c084fc;
+
+  /* Functional colors */
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #52525b;
+  --text-dim: #3f3f46;
+
+  /* Status colors */
+  --status-error: #ef4444;
+  --status-error-bg: #450a0a;
+  --sync-blue: #3b82f6;
+  --sync-blue-hover: #60a5fa;
+
+  /* Glow effects */
+  --glow-cyan: 0 0 20px rgba(34, 211, 238, 0.4);
+  --glow-cyan-intense: 0 0 30px rgba(34, 211, 238, 0.6);
+  --glow-purple: 0 0 20px rgba(168, 85, 247, 0.4);
+
+  /* Shadows for depth */
+  --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --shadow-button: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Tailwind v4 Theme Extension */
+@theme {
+  --color-void: var(--bg-void);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-interactive: var(--bg-interactive);
+  --color-accent: var(--accent-bright);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-glow: var(--accent-glow);
+  --font-family-ui: var(--font-ui);
+  --font-family-mono: var(--font-mono);
+}
+
+/* Base styles */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-void);
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+}
+
+/* Prevent pull-to-refresh and overscroll on iOS */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
+/* Prevent text selection on touch */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection in inputs if needed */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Subtle noise texture overlay (optional - applied via class) */
+.texture-noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* Glow pulse animation for active elements */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: var(--glow-cyan);
+  }
+  50% {
+    box-shadow: var(--glow-cyan-intense);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Queue pulse animation (amber) */
+@keyframes queue-pulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+    border-color: #f59e0b;
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+    border-color: #fbbf24;
+  }
+}
+
+.animate-queue-pulse {
+  animation: queue-pulse 1s ease-in-out infinite;
+}
+
+/* Beat pulse animation */
+@keyframes beat-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scaleX(1);
+  }
+  10% {
+    opacity: 1;
+    transform: scaleX(1.02);
+  }
+}
+
+.animate-beat {
+  animation: beat-pulse 0.5s ease-out;
+}
+
+/* Smooth value transitions for faders */
+.fader-fill {
+  transition: height 50ms linear;
+}
+
+/* Custom scrollbar for palette strip */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch-friendly range input styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--bg-interactive);
+  border-radius: 8px;
+  height: 100%;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: white;
+  border-radius: 50%;
+  box-shadow: var(--shadow-button);
+}

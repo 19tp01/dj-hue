@@ -1,0 +1,7 @@
+name: Wave Fast (1/4)
+category: Buildup
+description: Fast traveling wave (4x per bar)
+tags: wave, energy
+palette: neon
+---
+light("all").wave("sine", frequency=4.0, min_intensity=0.0).color(palette(0))

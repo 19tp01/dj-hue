@@ -1,0 +1,12 @@
+name: Bar Start Gentle Sine
+category: Chill
+description: Slow ambient pulse
+tags: ambient
+palette: warm
+---
+(
+    light("all")
+    .envelope(attack=0.5, fade=0.5, sustain=0.3)
+    .slow(2)
+    .color(palette.random_hold(4))  # New random color every bar
+)

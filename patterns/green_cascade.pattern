@@ -1,0 +1,21 @@
+name: Green Cascade
+category: Upbeat
+description: Neon green with sequential white flash at bar start
+tags: signature
+palette: neon
+---
+stack(
+    # Base layer: Even lights on quarter notes 1 and 3
+    light("even ~ even ~")
+    .envelope(attack=0.02, fade=0.2, sustain=0.8)
+    .color(palette(2)),
+    # Base layer: Odd lights on quarter notes 2 and 4
+    light("~ odd ~ odd")
+    .envelope(attack=0.02, fade=0.2, sustain=0.8)
+    .color(palette(2)),
+    # Flash layer: sequential white flash through ALL lights
+    light("all")
+    .seq(slots=16, per_group=False)
+    .envelope(attack=0.01, fade=0.12)
+    .color(flash="white", fade=palette(2)),
+)

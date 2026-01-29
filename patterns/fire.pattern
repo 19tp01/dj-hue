@@ -1,0 +1,25 @@
+name: Red Rave
+category: Upbeat
+description: Weird flickers idk
+tags: spatial
+palette: warm
+---
+flames = (
+    light("all all all all")
+    .seq()
+    .shuffle()
+    .fast(4)
+    .envelope(attack=0.01, fade=0.1, sustain=0)
+    .color(fade=palette(0))
+    .zone("perimeter", fallback="all")
+)
+
+embers = (
+    light("all")
+    .envelope(attack=0.3, fade=0.5, sustain=0.4)
+    .slow(2)
+    .color(palette(1))
+    .zone("ceiling")
+)
+
+stack(flames, embers)

@@ -1,0 +1,14 @@
+name: Left Right Fast
+category: Upbeat
+description: Left/right alternating at quarter note speed - one side peaks each beat
+tags: energy
+palette: red_cyan
+---
+stack(
+    light("left")
+    .modulate(wave="sine", frequency=4, min_intensity=0.1, max_intensity=1.0)
+    .color(palette(0)),
+    light("right")
+    .modulate(wave="sine", frequency=4, min_intensity=0.1, max_intensity=1.0, phase=0.5)
+    .color(palette(1)),
+)

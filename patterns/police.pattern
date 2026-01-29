@@ -1,0 +1,18 @@
+name: Police
+category: Upbeat
+description: Police lights: alternating palette colors between zones
+tags: spatial
+palette: red_cyan
+---
+ceiling_color0 = light("all ~").fast(4).color(palette(0)).zone("ceiling")
+perimeter_color1 = light("~ all").fast(4).color(palette(1)).zone("perimeter")
+
+left_color0 = light("left ~").fast(4).color(palette(0))
+right_color1 = light("~ right").fast(4).color(palette(1))
+
+stack(
+    ceiling_color0,
+    perimeter_color1,
+    left_color0.zone("all"),
+    right_color1.zone("all"),
+)

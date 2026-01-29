@@ -1,0 +1,21 @@
+name: Duo Color Flash Swap
+category: Upbeat
+description: Every quarter note beat, 2 random even-indexed lights flash one palette color while 2 random odd-indexed lights flash a contrasting color - creates a dynamic push-pull effect
+tags: flash, energy
+palette: red_cyan
+---
+even_flash = (
+    light("even even even even")  # Quarter notes
+    .pick(2)  # 2 random even lights each beat
+    .envelope(attack=0.01, fade=0.2)
+    .color(flash="white", fade=palette(0))
+)
+
+odd_flash = (
+    light("odd odd odd odd")  # Quarter notes
+    .pick(2)  # 2 random odd lights each beat
+    .envelope(attack=0.01, fade=0.2)
+    .color(flash="white", fade=palette(1))
+)
+
+stack(even_flash, odd_flash)

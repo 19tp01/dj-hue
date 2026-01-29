@@ -1,0 +1,10 @@
+name: Alternating Pulse
+category: Chill
+description: Odd/even lights trade quarter note pulses - odd lights pulse beats 1 and 3, even lights pulse beats 2 and 4
+tags: pulse, energy
+palette: red_cyan
+---
+stack(
+    light("odd ~ odd ~").envelope(attack=0.02, fade=0.2).color(palette(0)),
+    light("~ even ~ even").envelope(attack=0.02, fade=0.2).color(palette(1)),
+)

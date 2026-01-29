@@ -1,0 +1,11 @@
+name: Bar 1 Flash
+category: Chill
+description: Flash on beat 1 only
+tags: flash
+palette: fire
+---
+(
+    light("all ~*3")
+    .envelope(attack=0.02, fade=0.8, sustain=0.0)
+    .color(flash="white", fade=palette(0))
+)

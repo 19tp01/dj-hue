@@ -1,0 +1,24 @@
+name: Vortex
+category: Upbeat
+description: Spinning perimeter, calm ceiling eye
+tags: spatial
+palette: cool
+---
+spinning_edge = (
+    light("all")
+    .seq()
+    .fast(4)
+    .envelope(attack=0.02, fade=0.1)
+    .color(palette(0))
+    .zone("perimeter", fallback="all")
+)
+
+calm_eye = (
+    light("all")
+    .envelope(attack=0.5, fade=0.5, sustain=0.3)
+    .slow(2)
+    .color(palette(2))
+    .zone("ceiling")
+)
+
+stack(spinning_edge, calm_eye)

@@ -1,0 +1,18 @@
+name: Ceiling / Perimeter Swap
+category: Chill
+description: Alternating rings: ceiling and perimeter
+tags: spatial
+palette: red_cyan
+---
+ceiling_ring = light("all ~").color(palette(0)).zone("ceiling")
+perimeter_ring = light("~ all").color(palette(1)).zone("perimeter")
+
+even_ring = light("even ~").color(palette(0))
+odd_ring = light("~ odd").color(palette(1))
+
+stack(
+    ceiling_ring,
+    perimeter_ring,
+    even_ring.zone("all"),
+    odd_ring.zone("all"),
+)

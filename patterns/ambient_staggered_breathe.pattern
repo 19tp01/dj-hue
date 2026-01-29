@@ -1,0 +1,9 @@
+name: Staggered Breathe
+category: Ambient
+description: Each light breathes with a slightly offset phase creating an organic rippling effect across the room
+tags: ambient, wave, slow
+palette: cool
+---
+# Wave with very slow frequency creates staggered breathing
+# Each light's phase offset makes them breathe at different times
+light("all").wave("sine", frequency=0.25, min_intensity=0.25, max_intensity=0.55).color(palette.cycle_hold(32))

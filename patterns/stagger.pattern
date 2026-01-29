@@ -1,0 +1,13 @@
+name: Random Flashes
+category: Buildup
+description: Random sequential white flash, fades to palette
+tags: flash
+palette: fire
+---
+(
+    light("all")
+    .seq(per_group=False)
+    .shuffle()
+    .envelope(attack=0.05, fade=1.0, sustain=0.5)
+    .color(flash="white", fade=palette(0))
+)

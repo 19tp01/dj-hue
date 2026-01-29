@@ -1,0 +1,11 @@
+name: Wave Sharp
+category: Upbeat
+description: Sharp triangle wave peak
+tags: wave, energy
+palette: club
+---
+(
+    light("all")
+    .wave("triangle", frequency=2.0, min_intensity=0.0)
+    .color(palette(0))
+)

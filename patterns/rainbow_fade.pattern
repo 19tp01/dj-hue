@@ -1,0 +1,13 @@
+name: Wonderful Rainbow Room
+category: Upbeat
+description: Smooth rainbow blend with sawtooth pulse
+tags: rainbow, ambient
+palette: rainbow
+---
+(
+    light("all")
+    .color(palette.random_blend(1, 3))  # Continuous blend through palette every bar
+    .modulate(
+        "saw", frequency=2.0, min_intensity=1.0, max_intensity=0.8
+    )  # 100→50% every 2 beats
+)

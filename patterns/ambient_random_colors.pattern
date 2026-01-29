@@ -1,0 +1,9 @@
+name: Random Colors
+category: Ambient
+description: Each light breathes at a different phase with its own color from the palette - a slow rainbow of independent glows
+tags: ambient, slow
+palette: rainbow
+---
+# wave() expands to individual lights with phase offsets
+# palette.cycle gives each light a different color from the palette
+light("all").wave("sine", frequency=0.25, min_intensity=0.3, max_intensity=0.6).color(palette.cycle)

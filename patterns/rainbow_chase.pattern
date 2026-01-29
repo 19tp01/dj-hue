@@ -1,0 +1,11 @@
+name: Rainbow Chase
+category: Chill
+description: Rainbow colors chase on half notes
+tags: signature, rainbow
+palette: rainbow
+---
+(
+    cat(*[light("all").seq().envelope(attack=0.02, fade=0.4, sustain=0.0) for _ in range(8)])
+    .color(palette.cycle)
+    .fast(2)
+)

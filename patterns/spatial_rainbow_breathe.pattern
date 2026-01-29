@@ -1,0 +1,21 @@
+name: Spatial Rainbow Breathe
+category: Chill
+description: Rainbow breathing with complementary colors per zone
+tags: spatial, rainbow
+palette: rainbow
+---
+ceiling_colors = cat(
+    light("all").color("red").envelope(attack=0.4, fade=0.4, sustain=0.5),
+    light("all").color("yellow").envelope(attack=0.4, fade=0.4, sustain=0.5),
+    light("all").color("blue").envelope(attack=0.4, fade=0.4, sustain=0.5),
+    light("all").color("magenta").envelope(attack=0.4, fade=0.4, sustain=0.5),
+).zone("ceiling", fallback="all")
+
+perimeter_colors = cat(
+    light("all").color("cyan").envelope(attack=0.4, fade=0.4, sustain=0.5),
+    light("all").color("purple").envelope(attack=0.4, fade=0.4, sustain=0.5),
+    light("all").color("orange").envelope(attack=0.4, fade=0.4, sustain=0.5),
+    light("all").color("green").envelope(attack=0.4, fade=0.4, sustain=0.5),
+).zone("perimeter")
+
+stack(ceiling_colors, perimeter_colors)

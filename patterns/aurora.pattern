@@ -1,0 +1,23 @@
+name: Aurora
+category: Chill
+description: Aurora on ceiling with cycling colors, subtle reflection below
+tags: spatial, ambient
+palette: cool
+---
+aurora_colors = (
+    light("all")
+    .envelope(attack=0.4, fade=0.6, sustain=0.5)
+    .color(palette.cycle_hold(2))
+    .slow(2)
+    .zone("ceiling", fallback="all")
+)
+
+ambient_reflection = (
+    light("all")
+    .envelope(attack=0.5, fade=0.5, sustain=0.3)
+    .color(palette(1))
+    .slow(4)
+    .zone("perimeter")
+)
+
+stack(aurora_colors, ambient_reflection)

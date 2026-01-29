@@ -1,0 +1,17 @@
+name: Chase
+category: Buildup
+description: Sawtooth chase pattern
+tags: classic, chase
+palette: fire
+---
+(
+    light("all")
+    .seq()
+    .modulate(
+        wave="saw",
+        frequency=0.5,
+        min_intensity=0.5,
+        max_intensity=1.0,
+    )
+    .color(palette(0))
+)

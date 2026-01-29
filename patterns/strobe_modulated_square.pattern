@@ -1,0 +1,5 @@
+name: 1/4 Pulse
+category: Upbeat
+description: Square wave via modulation
+---
+light("all").fast(4).envelope(attack=0.01, decay=0.2, sustain=0.0).color(palette.random_hold(8))

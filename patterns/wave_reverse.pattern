@@ -1,0 +1,11 @@
+name: Wave Reverse (Full Bar Cycle)
+category: Chill
+description: Wave traveling in reverse
+tags: wave, ambient
+palette: ice
+---
+(
+    light("all")
+    .wave("sine", frequency=1.0, min_intensity=0.1, direction=-1)
+    .color(palette(0))
+)

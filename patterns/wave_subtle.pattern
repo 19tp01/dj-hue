@@ -1,0 +1,11 @@
+name: Slow Wave Subtle
+category: Ambient
+description: Subtle slow breathing wave
+tags: wave, ambient
+palette: warm
+---
+(
+    light("all")
+    .wave("sine", frequency=0.5, min_intensity=0.6, max_intensity=1.0)
+    .color(palette(0))
+)

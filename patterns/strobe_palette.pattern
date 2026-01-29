@@ -1,0 +1,7 @@
+name: 1/16 Strobe
+category: Buildup
+description: 16th note palette strobe
+tags: strobe
+palette: neon
+---
+light("all ~").fast(16).color(palette.cycle)

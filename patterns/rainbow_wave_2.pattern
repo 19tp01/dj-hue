@@ -1,0 +1,11 @@
+name: Rainbow Wave 2
+category: Chill
+description: Wave with color cycling each bar
+tags: wave, rainbow
+palette: rainbow
+---
+(
+    light("all")
+    .wave("sine", frequency=1.0, min_intensity=0.1)
+    .color(palette.cycle_hold(4))
+)

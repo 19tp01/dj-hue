@@ -1,0 +1,7 @@
+name: Gentle Wave
+category: Ambient
+description: A soft traveling wave moves through the lights over 4 bars - like a slow ocean swell
+tags: ambient, wave, slow
+palette: ocean
+---
+light("all").wave("sine", frequency=0.25, min_intensity=0.2, max_intensity=0.5).color(palette.cycle_hold(16))

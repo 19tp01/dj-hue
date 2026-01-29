@@ -1,0 +1,16 @@
+name: Strobe Build
+category: Upbeat
+description: Strobe build with palette colors
+tags: strobe
+palette: neon
+---
+(
+    cat(
+        light("all ~").fast(2),  # Quarter notes (bars 1-2)
+        light("all ~").fast(4),  # 8th notes (bars 3-4)
+        light("all ~").fast(8),  # 16th notes (bars 5-6)
+        light("all ~").fast(16),  # 32nd notes (bars 7-8)
+    )
+    .slow(2)
+    .color(palette.cycle)
+)

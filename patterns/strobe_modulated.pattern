@@ -1,0 +1,10 @@
+name: Triangle Strobe
+category: Upbeat
+description: Triangle wave strobe via modulation
+tags: strobe
+---
+(
+    light("all")
+    .modulate("triangle", frequency=8, min_intensity=0, max_intensity=0.7)
+    .color(palette(0))
+)

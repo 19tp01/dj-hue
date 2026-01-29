@@ -1,0 +1,23 @@
+name: Heartbeat
+category: Chill
+description: Double-pulse heartbeat, ceiling leads
+tags: spatial
+palette: mono_red
+---
+ceiling_beat = (
+    light("all all ~*2")
+    .envelope(attack=0.02, fade=0.2, sustain=0.0)
+    .color(palette(0))
+    .zone("ceiling", fallback="all")
+)
+
+perimeter_beat = (
+    light("all all ~*2")
+    .envelope(attack=0.02, fade=0.25, sustain=0.0)
+    .color(palette(0))
+    .intensity(0.7)
+    .late(0.0125)
+    .zone("perimeter")
+)
+
+stack(ceiling_beat, perimeter_beat)

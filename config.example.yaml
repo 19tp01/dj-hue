@@ -1,0 +1,94 @@
+# DJ Hue Configuration
+# Copy this to config.yaml and customize
+
+# Audio input configuration
+audio:
+  # Device name: null for default mic, or specific device name
+  # Examples: "BlackHole 2ch", "Loopback Audio", "MacBook Pro Microphone"
+  # Use --list-devices to see available devices
+  device: null
+  sample_rate: 44100
+  block_size: 512
+  channels: 1
+
+# Philips Hue configuration
+# Run --setup to generate these credentials
+hue:
+  bridge_ip: "192.168.1.100"
+  username: "your-hue-username"
+  clientkey: "your-client-key-hex"
+  entertainment_area_id: "your-entertainment-area-uuid"
+  fps: 25
+
+# Frequency bands for analysis
+# Customize the ranges to match your music style
+frequency_bands:
+  - name: bass
+    low_hz: 20
+    high_hz: 250
+  - name: mid
+    low_hz: 250
+    high_hz: 2000
+  - name: high
+    low_hz: 2000
+    high_hz: 20000
+
+# Light groups and mappings
+# Map each light to a frequency band with color settings
+light_groups:
+  - name: "Main Room"
+    lights:
+      # Bass lights - red/orange, beat reactive for punchy kicks
+      - light_id: 0
+        frequency_band: bass
+        base_hue: 0.0        # Red
+        saturation: 1.0
+        sensitivity: 1.0
+        min_brightness: 0.05
+        beat_reactive: true
+
+      - light_id: 1
+        frequency_band: bass
+        base_hue: 0.05       # Orange-red
+        saturation: 1.0
+        sensitivity: 1.0
+        min_brightness: 0.05
+        beat_reactive: true
+
+      # Mid lights - green/cyan for melodies and vocals
+      - light_id: 2
+        frequency_band: mid
+        base_hue: 0.33       # Green
+        saturation: 0.9
+        sensitivity: 1.2
+        min_brightness: 0.1
+        beat_reactive: false
+
+      - light_id: 3
+        frequency_band: mid
+        base_hue: 0.5        # Cyan
+        saturation: 0.9
+        sensitivity: 1.2
+        min_brightness: 0.1
+        beat_reactive: false
+
+      # High lights - blue/purple for hi-hats and sparkle
+      - light_id: 4
+        frequency_band: high
+        base_hue: 0.66       # Blue
+        saturation: 1.0
+        sensitivity: 1.5     # Highs need more sensitivity
+        min_brightness: 0.1
+        beat_reactive: false
+
+      - light_id: 5
+        frequency_band: high
+        base_hue: 0.8        # Purple
+        saturation: 1.0
+        sensitivity: 1.5
+        min_brightness: 0.1
+        beat_reactive: false
+
+# Global settings
+beat_detection: true
+smoothing: 0.3  # 0.0 = very reactive, 1.0 = very smooth

@@ -1,0 +1,7 @@
+name: Autonomous
+category: Chill
+description: Each light independently on/off at random beats
+tags: autonomous
+palette: mono_white
+---
+light("all").autonomous(min_freq=0.25, max_freq=1.0, duty=0.6).color(palette(1))

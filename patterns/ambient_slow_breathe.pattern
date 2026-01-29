@@ -1,0 +1,7 @@
+name: Slow Breathe
+category: Ambient
+description: All lights breathe together in a gentle 4-bar sine wave - subtle intensity changes that are barely perceptible
+tags: ambient, slow
+palette: warm
+---
+light("all").modulate("sine", frequency=0.25, min_intensity=0.3, max_intensity=0.6).color(palette.cycle_hold(16))

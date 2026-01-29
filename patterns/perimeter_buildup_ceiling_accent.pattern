@@ -1,0 +1,23 @@
+name: Rippling Swap
+category: Upbeat
+description: Perimeter pulses with quarter note sawtooth modulated by a rising 2-bar intensity ramp (20% to 100%), while ceiling fires a single dramatic flash every 2 bars that slowly fades to black
+tags: spatial, build, energy
+palette: fire
+---
+perimeter = (
+    light("all")
+    .modulate("saw", frequency=4.0, min_intensity=0.0, max_intensity=1.0)  # Quarter note sawtooth
+    .modulate("saw", frequency=0.5, min_intensity=0.2, max_intensity=1.0)  # Rising 2-bar envelope 20%->100%
+    .color(palette(0))
+    .zone("perimeter")
+)
+
+ceiling = (
+    light("all ~")
+    .slow(2)  # One flash every 2 bars
+    .envelope(attack=0.01, fade=2.0, sustain=0.0)  # Fade over 2 bars
+    .color(flash="white", fade=palette(1))
+    .zone("ceiling", fallback="all")
+)
+
+stack(perimeter, ceiling)

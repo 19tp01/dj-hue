@@ -1,0 +1,16 @@
+name: Sine Pulse
+category: Upbeat
+description: All lights pulse together on beat
+tags: classic
+palette: fire
+---
+(
+    light("all")
+    .modulate(
+        wave="sine",
+        frequency=4,
+        min_intensity=0.3,
+        max_intensity=0.8,
+    )
+    .color(palette.random_hold(8))
+)

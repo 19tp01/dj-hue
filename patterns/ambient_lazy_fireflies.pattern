@@ -1,0 +1,7 @@
+name: Lazy Fireflies
+category: Ambient
+description: Each light blinks independently at very slow random intervals - like fireflies on a warm summer night
+tags: ambient, autonomous, slow
+palette: golden
+---
+light("all").autonomous(min_freq=0.1, max_freq=0.3, duty=0.8, colors=[]).color(palette.random).intensity(0.45)

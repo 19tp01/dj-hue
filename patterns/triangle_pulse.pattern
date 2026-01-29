@@ -1,0 +1,11 @@
+name: Triangle Pulse
+category: Upbeat
+description: Triangle wave pulse on every beat
+tags: pulse
+palette: neon
+---
+(
+    light("all")
+    .modulate("triangle", frequency=4.0, min_intensity=0, max_intensity=1.0)
+    .color(palette.random_hold(4))  # New random color every bar
+)

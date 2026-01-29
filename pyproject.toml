@@ -1,0 +1,39 @@
+[project]
+name = "dj-hue"
+version = "0.1.0"
+description = "MIDI-reactive Philips Hue light show"
+requires-python = ">=3.10,<3.13"
+
+dependencies = [
+    "numpy>=1.24.0,<2.4", # numba requires numpy <2.4
+    "hue-entertainment-pykit>=0.5.0",
+    "pyyaml>=6.0",
+    "requests>=2.28.0",
+    "aalink>=0.0.7", # Ableton Link for beat sync
+    "mido>=1.3.0", # MIDI message parsing
+    "python-rtmidi>=1.5.0", # MIDI port access
+    "watchdog>=6.0.0",
+    "aiohttp>=3.9.0", # WebSocket server for touch control
+    "pymobiledevice3>=7.0.0", # USB tunnel for iPad low-latency connection
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.0",
+    "mypy>=1.0",
+]
+
+[project.scripts]
+dj-hue = "dj_hue.cli.midi_pattern_mode:main"
+dj-hue-midi = "dj_hue.cli.midi_hue:main"
+dj-hue-link = "dj_hue.cli.link_hue:main"
+dj-hue-discover = "dj_hue.cli.discover:main"
+dj-hue-touch = "dj_hue.touch.server:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

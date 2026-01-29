@@ -1,0 +1,24 @@
+name: Sunrise
+category: Chill
+description: Slow sunrise: ceiling leads color transition through warm palette
+tags: spatial, ambient
+palette: warm
+---
+sky_transition = (
+    light("all")
+    .envelope(attack=0.5, fade=0.5, sustain=0.8)
+    .color(palette.cycle_hold(2))
+    .slow(2)
+    .zone("ceiling", fallback="all")
+)
+
+room_transition = (
+    light("all")
+    .envelope(attack=0.5, fade=0.5, sustain=0.6)
+    .color(palette.cycle_hold(2))
+    .slow(2)
+    .late(0.5)
+    .zone("perimeter")
+)
+
+stack(sky_transition, room_transition)

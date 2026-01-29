@@ -1,0 +1,23 @@
+name: Comet
+category: Upbeat
+description: Comet enters from ceiling, trails around room
+tags: spatial
+palette: ice
+---
+entry_flash = (
+    light("all")
+    .color(palette(1))
+    .envelope(attack=0.01, fade=0.2, sustain=0)
+    .zone("ceiling")
+)
+
+trail = (
+    light("all")
+    .seq()
+    .envelope(attack=0.02, fade=0.3, sustain=0.1)
+    .color(flash=palette(1), fade=palette(0))
+    .late(0.0625)
+    .zone("perimeter", fallback="all")
+)
+
+stack(entry_flash, trail)

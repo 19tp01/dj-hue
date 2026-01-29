@@ -1,0 +1,23 @@
+name: Counter Zones
+category: Ambient
+description: Ceiling and perimeter breathe in opposition - as one rises the other falls, creating a gentle push-pull
+tags: ambient, spatial, slow
+palette: pink_teal
+---
+# Ceiling breathes normally
+ceiling = (
+    light("all")
+    .modulate("sine", frequency=0.25, min_intensity=0.25, max_intensity=0.5)
+    .color(palette(0))
+    .zone("ceiling", fallback="left")
+)
+
+# Perimeter uses inverted sine (swap min/max) with phase offset
+perimeter = (
+    light("all")
+    .modulate("sine", frequency=0.25, min_intensity=0.5, max_intensity=0.25, phase=0.5)
+    .color(palette(1))
+    .zone("perimeter", fallback="right")
+)
+
+stack(ceiling, perimeter)

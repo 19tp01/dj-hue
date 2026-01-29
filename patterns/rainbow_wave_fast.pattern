@@ -1,0 +1,11 @@
+name: Rainbow Wave Fast
+category: Upbeat
+description: Fast wave with color cycling
+tags: wave, rainbow, energy
+palette: rainbow
+---
+(
+    light("all")
+    .wave("sine", frequency=4.0, min_intensity=0.0)
+    .color(palette.cycle_hold(0.5))
+)

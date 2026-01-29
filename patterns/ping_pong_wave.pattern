@@ -1,0 +1,22 @@
+name: Ping Pong Wave
+category: Ambient
+description: Wave alternates direction each bar
+tags: wave, energy
+palette: cool
+---
+from dj_hue.patterns.strudel import cat
+
+cat(
+    # Bar 1: forward wave (event_relative so it starts at light 0)
+    light("all ~*3")
+    .wave(
+        "sine", frequency=4.0, min_intensity=0.0, direction=1, event_relative=True
+    )
+    .envelope(attack=0.0, fade=0.25),  # Fade out over 1 beat after event
+    # Bar 2: reverse wave
+    light("all all ~*2")
+    .wave(
+        "sine", frequency=1.0, min_intensity=0.0, direction=-1, event_relative=True
+    )
+    .envelope(attack=0.0, fade=0.25),
+).color(palette(0))

@@ -1,0 +1,19 @@
+name: Wave On Color
+category: Chill
+description: A dim background color fills all lights while a traveling sine wave sweeps through at full brightness - the wave peaks override the background via HTP (Highest Takes Precedence) blending
+tags: wave, ambient
+palette: ocean
+---
+background = (
+    light("all")
+    .intensity(0.15)
+    .color(palette(0))
+)
+
+wave_sweep = (
+    light("all")
+    .wave("sine", frequency=1.0, min_intensity=0.0, max_intensity=1.0)
+    .color(palette(1))
+)
+
+stack(background, wave_sweep)

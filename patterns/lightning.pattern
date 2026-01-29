@@ -1,0 +1,22 @@
+name: Lightning
+category: Chill
+description: Lightning strikes from ceiling, illuminates room
+tags: spatial
+palette: flash_cyan
+---
+ceiling_flash = (
+    light("all ~*3")
+    .color(flash=palette(0), fade=palette(1))
+    .envelope(attack=0.01, fade=0.25, sustain=0.0)
+    .zone("ceiling", fallback="all")
+)
+
+perimeter_flash = (
+    light("all ~*3")
+    .color(flash=palette(0), fade=palette(1))
+    .envelope(attack=0.01, fade=0.4, sustain=0.0)
+    .late(0.02)
+    .zone("perimeter")
+)
+
+stack(ceiling_flash, perimeter_flash)

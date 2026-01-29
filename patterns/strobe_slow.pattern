@@ -1,0 +1,7 @@
+name: 1/4 On and Off
+category: Upbeat
+description: 1/8 note on, 1/8 note off white strobe
+tags: strobe
+palette: white_tones
+---
+light("all ~").fast(4).color(palette(0))

@@ -1,0 +1,10 @@
+name: Half Bar Sudden Alternate
+category: Chill
+description: Left/right alternating
+tags: energy
+palette: red_cyan
+---
+stack(
+    light("left ~").color(palette(0)),
+    light("~ right").color(palette(1)),
+)

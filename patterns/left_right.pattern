@@ -1,0 +1,16 @@
+name: Left Right
+category: Chill
+description: Left/right alternating with complementary colors
+tags: classic
+palette: red_cyan
+---
+stack(
+    light("left")
+    .modulate(wave="sine", frequency=0.5, min_intensity=0.1, max_intensity=1.0)
+    .color(palette(0)),
+    light("right")
+    .modulate(
+        wave="sine", frequency=0.5, min_intensity=0.1, max_intensity=1.0, phase=0.5
+    )
+    .color(palette(1)),
+)

@@ -1,0 +1,17 @@
+name: Rainbow Wave
+category: Chill
+description: Rainbow wave across lights
+tags: rainbow
+palette: rainbow
+---
+(
+    cat(*[light("all").seq() for _ in range(8)])
+    .color(palette.cycle)
+    .fast(4)  # 2 colors per bar
+    .modulate(
+        wave="sine",
+        frequency=0.25,
+        min_intensity=0.5,
+        max_intensity=1.0,
+    )
+)
