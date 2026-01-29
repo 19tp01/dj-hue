@@ -5,7 +5,9 @@
 
 ## Screenshots
 
-<!-- Add screenshots here -->
+<img width="2452" height="1850" alt="CleanShot 2026-01-28 at 22 52 13@2x" src="https://github.com/user-attachments/assets/5a240b68-2c21-4430-af23-85bed6daba1a" />
+<img width="2446" height="1840" alt="CleanShot 2026-01-28 at 22 46 36@2x" src="https://github.com/user-attachments/assets/c9b17190-3d51-4976-a5a9-8b805567a80f" />
+
 
 ## About
 
